@@ -93,6 +93,8 @@ Important requirements:
 * **Do NOT add any theme toggle**.
 * Simply **improve the current light UI** with better spacing, alignment, layout, and visual polish.
 
+Additionally, review the entire codebase for unused, redundant, or dead logic. Where possible, safely remove or refactor this code, making sure that the existing system and functionality remain fully intact.
+
 ---
 
 ### Important Note
