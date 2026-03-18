@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
@@ -42,13 +42,19 @@ export default function AdminRoomsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState<RoomData | null>(null);
-  const [editingBeds, setEditingBeds] = useState<Record<number, { name: string; monthlyRent: number }>>({});
+  const [editingBeds, setEditingBeds] = useState<
+    Record<number, { name: string; monthlyRent: number }>
+  >({});
   const [savingEdit, setSavingEdit] = useState(false);
 
-  const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; roomId: number | null }>({
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    roomId: number | null;
+  }>({
     isOpen: false,
     roomId: null,
   });
+
   const [confirmBedModal, setConfirmBedModal] = useState<{
     isOpen: boolean;
     roomId: number | null;
@@ -58,24 +64,23 @@ export default function AdminRoomsPage() {
     roomId: null,
     bedId: null,
   });
-  const [newBedForRoom, setNewBedForRoom] = useState<{
-    name: string;
-    monthlyRent: number;
-  }>({ name: "", monthlyRent: 0 });
+
+  const [newBedForRoom, setNewBedForRoom] = useState({
+    name: "",
+    monthlyRent: 0,
+  });
+
   const [deleting, setDeleting] = useState(false);
 
-  // Form state for new room
+  // Form state
   const [roomName, setRoomName] = useState("");
   const [roomDesc, setRoomDesc] = useState("");
   const [newBeds, setNewBeds] = useState<NewBed[]>([
     { name: "Bed A", monthlyRent: 5000 },
   ]);
 
-  useEffect(() => {
-    fetchRooms();
-  }, []);
-
-  const fetchRooms = async () => {
+  // ✅ Optimized fetch
+  const fetchRooms = useCallback(async () => {
     try {
       const res = await api.get("/api/rooms");
       setRooms(res.data?.data || []);
@@ -84,12 +89,19 @@ export default function AdminRoomsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchRooms();
+  }, [fetchRooms]);
 
   const addBedField = () => {
     setNewBeds((prev) => [
       ...prev,
-      { name: `Bed ${String.fromCharCode(65 + prev.length)}`, monthlyRent: 5000 },
+      {
+        name: `Bed ${String.fromCharCode(65 + prev.length)}`,
+        monthlyRent: 5000,
+      },
     ]);
   };
 
@@ -107,13 +119,16 @@ export default function AdminRoomsPage() {
     );
   };
 
-  const handleCreateRoom = async (e: React.SubmitEvent) => {
+  const handleCreateRoom = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (newBeds.length === 0) {
       toast.error("Add at least one bed");
       return;
     }
+
     setSubmitting(true);
+
     try {
       await api.post("/api/rooms", {
         name: roomName,
@@ -123,12 +138,13 @@ export default function AdminRoomsPage() {
           monthlyRent: Number(b.monthlyRent),
         })),
       });
+
       toast.success("Room created!");
       setModalOpen(false);
       setRoomName("");
       setRoomDesc("");
       setNewBeds([{ name: "Bed A", monthlyRent: 5000 }]);
-      fetchRooms();
+      await fetchRooms();
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, "Failed to create room"));
     } finally {
@@ -138,56 +154,52 @@ export default function AdminRoomsPage() {
 
   const handleEditClick = (room: RoomData) => {
     setEditingRoom(room);
-    const bedEdits: Record<number, { name: string; monthlyRent: number }> = {};
+
+    const edits: Record<number, { name: string; monthlyRent: number }> = {};
     room.beds.forEach((b) => {
-      bedEdits[b.id] = { name: b.name, monthlyRent: b.monthlyRent };
+      edits[b.id] = { name: b.name, monthlyRent: b.monthlyRent };
     });
-    setEditingBeds(bedEdits);
+
+    setEditingBeds(edits);
     setEditModalOpen(true);
   };
 
-  const updateEditingBed = (bedId: number, field: "name" | "monthlyRent", value: string | number) => {
+  const updateEditingBed = (
+    bedId: number,
+    field: "name" | "monthlyRent",
+    value: string | number
+  ) => {
     setEditingBeds((prev) => ({
       ...prev,
-      [bedId]: { ...prev[bedId], [field]: value }
+      [bedId]: { ...prev[bedId], [field]: value },
     }));
   };
 
-  const handleSaveEdit = async (e: React.SubmitEvent) => {
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingRoom) return;
-    setSavingEdit(true);
-    try {
-      await api.put(`/api/rooms/${editingRoom.id}`, { name: editingRoom.name, description: editingRoom.description });
 
-      const updates = Object.entries(editingBeds).map(([bedId, data]) => {
-        return api.put(`/api/rooms/${editingRoom.id}/beds/${bedId}`, data);
+    setSavingEdit(true);
+
+    try {
+      await api.put(`/api/rooms/${editingRoom.id}`, {
+        name: editingRoom.name,
+        description: editingRoom.description,
       });
+
+      const updates = Object.entries(editingBeds).map(([bedId, data]) =>
+        api.put(`/api/rooms/${editingRoom.id}/beds/${bedId}`, data)
+      );
+
       await Promise.all(updates);
 
       toast.success("Room updated successfully!");
       setEditModalOpen(false);
-      fetchRooms();
+      await fetchRooms();
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, "Failed to update room"));
     } finally {
       setSavingEdit(false);
-    }
-  };
-
-  const handleDeleteBed = async (roomId: number, bedId: number) => {
-    try {
-      await api.delete(`/api/rooms/${roomId}/beds/${bedId}`);
-      toast.success("Bed deleted successfully");
-      setEditingRoom(prev => prev ? { ...prev, beds: prev.beds.filter(b => b.id !== bedId) } : null);
-      setEditingBeds(prev => {
-        const next = { ...prev };
-        delete next[bedId];
-        return next;
-      });
-      fetchRooms();
-    } catch (err: unknown) {
-      toast.error(getErrorMessage(err, "Failed to delete bed"));
     }
   };
 
@@ -200,28 +212,27 @@ export default function AdminRoomsPage() {
     }
 
     try {
-      await api.post(`/api/rooms/${editingRoom.id}/beds`, {
-        name: newBedForRoom.name,
-        monthlyRent: newBedForRoom.monthlyRent,
-      });
+      await api.post(`/api/rooms/${editingRoom.id}/beds`, newBedForRoom);
 
       toast.success("Bed added successfully");
-
       setNewBedForRoom({ name: "", monthlyRent: 0 });
-      fetchRooms();
+
+      await fetchRooms();
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, "Failed to add bed"));
     }
   };
 
   const confirmDeleteRoom = async () => {
-    if (!confirmModal.roomId) return;
+    if (confirmModal.roomId === null) return;
+
     setDeleting(true);
+
     try {
       await api.delete(`/api/rooms/${confirmModal.roomId}`);
       toast.success("Room deleted successfully!");
       setConfirmModal({ isOpen: false, roomId: null });
-      fetchRooms();
+      await fetchRooms();
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, "Failed to delete room"));
     } finally {
@@ -230,7 +241,11 @@ export default function AdminRoomsPage() {
   };
 
   const confirmDeleteBed = async () => {
-    if (!confirmBedModal.roomId || !confirmBedModal.bedId) return;
+    if (
+      confirmBedModal.roomId === null ||
+      confirmBedModal.bedId === null
+    )
+      return;
 
     try {
       await api.delete(
@@ -241,7 +256,12 @@ export default function AdminRoomsPage() {
 
       setEditingRoom((prev) =>
         prev
-          ? { ...prev, beds: prev.beds.filter((b) => b.id !== confirmBedModal.bedId) }
+          ? {
+            ...prev,
+            beds: prev.beds.filter(
+              (b) => b.id !== confirmBedModal.bedId
+            ),
+          }
           : null
       );
 
@@ -252,7 +272,7 @@ export default function AdminRoomsPage() {
       });
 
       setConfirmBedModal({ isOpen: false, roomId: null, bedId: null });
-      fetchRooms();
+      await fetchRooms();
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, "Failed to delete bed"));
     }
