@@ -59,6 +59,10 @@ export default function HomePage() {
       toast.error("Admins cannot book beds. Use the admin panel.");
       return;
     }
+    if (user?.isActive === false) {
+      toast.error("Your account has been deactivated. Please contact the administrator.");
+      return;
+    }
     setSelectedBed(bed);
     // Suggest today's date
     const today = new Date().toISOString().split("T")[0];
@@ -66,7 +70,7 @@ export default function HomePage() {
     setModalOpen(true);
   };
 
-  const handleConfirmBooking = async (e: React.FormEvent) => {
+  const handleConfirmBooking = async (e: React.SubmitEvent) => {
     e.preventDefault();
     if (!selectedBed || !moveInDate) return;
     
@@ -113,8 +117,8 @@ export default function HomePage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <section className="text-center py-16 lg:py-20">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+        <section className="text-center py-12 lg:py-20">
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-6">
             <Home className="h-4 w-4" /> Find Your Perfect Space
           </div>
@@ -132,8 +136,8 @@ export default function HomePage() {
           )}
         </section>
 
-        <section id="rooms" className="py-12 border-t border-base-200">
-          <h2 className="text-3xl font-bold tracking-tight mb-8">Available Rooms</h2>
+        <section id="rooms" className="py-10 sm:py-12 border-t border-base-200">
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-8">Available Rooms</h2>
           {loading ? (
             <RoomGridSkeleton />
           ) : rooms.length === 0 ? (

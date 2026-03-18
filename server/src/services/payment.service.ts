@@ -57,6 +57,7 @@ export async function initiateRentPayment(
         .get();
 
     if (!tenant) throw new Error("Tenant not found");
+    if (tenant.isActive === false) throw new Error("Your account has been deactivated. Please contact the administrator.");
 
     // Check for duplicate payment for same month and booking
     const existing = await db

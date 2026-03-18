@@ -94,7 +94,7 @@ export default function AdminRoomsPage() {
     );
   };
 
-  const handleCreateRoom = async (e: React.FormEvent) => {
+  const handleCreateRoom = async (e: React.SubmitEvent) => {
     e.preventDefault();
     if (newBeds.length === 0) {
       toast.error("Add at least one bed");
@@ -140,7 +140,7 @@ export default function AdminRoomsPage() {
     }));
   };
 
-  const handleSaveEdit = async (e: React.FormEvent) => {
+  const handleSaveEdit = async (e: React.SubmitEvent) => {
     e.preventDefault();
     if (!editingRoom) return;
     setSavingEdit(true);
@@ -159,6 +159,23 @@ export default function AdminRoomsPage() {
       toast.error(getErrorMessage(err, "Failed to update room"));
     } finally {
       setSavingEdit(false);
+    }
+  };
+
+  const handleDeleteBed = async (roomId: number, bedId: number) => {
+    if (!confirm("Are you sure you want to delete this bed?")) return;
+    try {
+      await api.delete(`/api/rooms/${roomId}/beds/${bedId}`);
+      toast.success("Bed deleted successfully");
+      setEditingRoom(prev => prev ? { ...prev, beds: prev.beds.filter(b => b.id !== bedId) } : null);
+      setEditingBeds(prev => {
+        const next = { ...prev };
+        delete next[bedId];
+        return next;
+      });
+      fetchRooms();
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, "Failed to delete bed"));
     }
   };
 
@@ -224,11 +241,11 @@ export default function AdminRoomsPage() {
           <p className="text-base-content/60">No rooms yet. Create one!</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
           {rooms.map((room) => (
             <div
               key={room.id}
-              className="card bg-base-100 shadow-md border border-base-200"
+              className="card bg-base-100 shadow-md border border-base-200 hover:shadow-lg transition-shadow"
             >
               <div className="card-body p-5">
                 <div className="flex items-center justify-between mb-1">
@@ -341,15 +358,14 @@ export default function AdminRoomsPage() {
                     required
                     min={0}
                   />
-                  {newBeds.length > 1 && (
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm btn-square"
-                      onClick={() => removeBedField(i)}
-                    >
-                      <Trash2 className="h-4 w-4 text-error" />
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm btn-square"
+                    onClick={() => removeBedField(i)}
+                    aria-label="Remove bed"
+                  >
+                    <Trash2 className="h-4 w-4 text-error" />
+                  </button>
                 </div>
               ))}
             </div>
@@ -412,6 +428,14 @@ export default function AdminRoomsPage() {
                     onChange={(e) => updateEditingBed(bed.id, "monthlyRent", Number(e.target.value) || 0)}
                     required
                   />
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm btn-square"
+                    onClick={() => handleDeleteBed(editingRoom.id, bed.id)}
+                    title="Delete Bed"
+                  >
+                    <Trash2 className="h-4 w-4 text-error" />
+                  </button>
                 </div>
               ))}
             </div>

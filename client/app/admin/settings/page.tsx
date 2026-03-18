@@ -55,6 +55,12 @@ export default function AdminSettingsPage() {
 
   const handleSave = async (e: React.SubmitEvent) => {
     e.preventDefault();
+
+    if (form.rent_due_start_day >= form.rent_due_end_day) {
+      toast.error("Rent due start day must be before end day");
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -75,11 +81,13 @@ export default function AdminSettingsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
-        <Settings className="h-6 w-6" /> System Settings
-      </h1>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <Settings className="h-6 w-6" /> System Settings
+        </h1>
+      </div>
 
-      <div className="card bg-base-100 shadow-md border border-base-200 max-w-lg">
+      <div className="card bg-base-100 shadow-md border border-base-200 max-w-lg hover:shadow-lg transition-shadow">
         <div className="card-body">
           <form onSubmit={handleSave} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">

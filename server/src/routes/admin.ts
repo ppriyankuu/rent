@@ -365,6 +365,30 @@ adminRoute.put("/tenants/:id/deactivate", async (c) => {
     return c.json(ok({ message: "Tenant account deactivated, booking ended, bed freed" }));
 });
 
+// ─── PUT /api/admin/tenants/:id/reactivate ────────────────────
+adminRoute.put("/tenants/:id/reactivate", async (c) => {
+    const tenantId = parseInt(c.req.param("id"), 10);
+    if (isNaN(tenantId)) return c.json(err("Invalid tenant ID"), 400);
+
+    const db = createDb(c.env.DB);
+
+    const tenant = await db
+        .select({ id: users.id, isActive: users.isActive })
+        .from(users)
+        .where(and(eq(users.id, tenantId), eq(users.role, "tenant")))
+        .get();
+
+    if (!tenant) return c.json(err("Tenant not found"), 404);
+    if (tenant.isActive) return c.json(err("Tenant is already active"), 409);
+
+    await db
+        .update(users)
+        .set({ isActive: true })
+        .where(eq(users.id, tenantId));
+
+    return c.json(ok({ message: "Tenant account reactivated" }));
+});
+
 // ─── DELETE /api/admin/tenants/:id ─────────────────────────────
 // Permanently delete a tenant and all their associated data
 // Rate limited to prevent accidental mass deletion

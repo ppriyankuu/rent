@@ -16,7 +16,8 @@ export function Navbar({ hideMobileMenu = false, drawerId }: { hideMobileMenu?: 
   };
 
   return (
-    <div className="navbar bg-base-100 shadow-sm border-b border-base-200 px-4">
+    // <div className="navbar bg-base-100 shadow-sm border-b border-base-200 px-4">
+    <div className="navbar relative z-50 bg-base-100 shadow-sm border-b border-base-200 px-4">
       {/* Mobile menu */}
       <div className="navbar-start">
         {!hideMobileMenu && (

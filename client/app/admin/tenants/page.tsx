@@ -7,7 +7,7 @@ import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { Modal } from "@/components/Modal";
 import toast from "react-hot-toast";
 import Link from "next/link";
-import { Users, Plus, Eye, UserMinus, Trash2 } from "lucide-react";
+import { Users, Plus, Eye, UserMinus, Trash2, UserCheck } from "lucide-react";
 import { TableSkeleton } from "@/components/Skeleton";
 
 interface Tenant {
@@ -52,7 +52,7 @@ export default function AdminTenantsPage() {
   // Confirmation modal state
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
-    type: "deactivate" | "delete" | null;
+    type: "reactivate" | "deactivate" | "delete" | null;
     tenantId: number | null;
   }>({
     isOpen: false,
@@ -103,7 +103,7 @@ export default function AdminTenantsPage() {
     setModalOpen(true);
   };
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleCreate = async (e: React.SubmitEvent) => {
     e.preventDefault();
     setSubmitting(true);
     try {
@@ -134,7 +134,15 @@ export default function AdminTenantsPage() {
     
     setConfirmModal({ isOpen: false, type: null, tenantId: null });
 
-    if (actionType === "deactivate") {
+    if (actionType === "reactivate") {
+      try {
+        await api.put(`/api/admin/tenants/${tenantId}/reactivate`);
+        toast.success("Tenant reactivated");
+        fetchTenants();
+      } catch {
+        toast.error("Failed to reactivate tenant");
+      }
+    } else if (actionType === "deactivate") {
       try {
         await api.put(`/api/admin/tenants/${tenantId}/deactivate`);
         toast.success("Tenant deactivated");
@@ -151,6 +159,10 @@ export default function AdminTenantsPage() {
         toast.error(getErrorMessage(err, "Failed to delete tenant"));
       }
     }
+  };
+
+  const handleReactivate = (tenantId: number) => {
+    setConfirmModal({ isOpen: true, type: "reactivate", tenantId });
   };
 
   const handleDeactivate = (tenantId: number) => {
@@ -191,7 +203,7 @@ export default function AdminTenantsPage() {
           <p className="text-base-content/60">No tenants yet.</p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto rounded-lg border border-base-200">
           <table className="table table-zebra">
             <thead>
               <tr>
@@ -234,6 +246,8 @@ export default function AdminTenantsPage() {
                       <Link
                         href={`/admin/tenants/${t.id}`}
                         className="btn btn-ghost btn-xs"
+                        title="View Details"
+                        aria-label="View tenant details"
                       >
                         <Eye className="h-3 w-3" />
                       </Link>
@@ -241,18 +255,29 @@ export default function AdminTenantsPage() {
                         <button
                           className="btn btn-ghost btn-xs text-error"
                           onClick={() => handleDeactivate(t.id)}
+                          title="Deactivate Tenant"
+                          aria-label="Deactivate tenant"
                         >
                           <UserMinus className="h-3 w-3" />
                         </button>
                       )}
                       {!t.isActive && (
-                        <button
-                          className="btn btn-ghost btn-xs text-error"
-                          onClick={() => handleDelete(t.id)}
-                          title="Delete Tenant"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
+                        <>
+                          <button
+                            className="btn btn-ghost btn-xs text-success"
+                            onClick={() => handleReactivate(t.id)}
+                            title="Reactivate Tenant"
+                          >
+                            <UserCheck className="h-3 w-3" />
+                          </button>
+                          <button
+                            className="btn btn-ghost btn-xs text-error"
+                            onClick={() => handleDelete(t.id)}
+                            title="Delete Tenant"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </>
                       )}
                     </div>
                   </td>
@@ -307,7 +332,7 @@ export default function AdminTenantsPage() {
               type="tel"
               className="input input-bordered w-full"
               value={form.phone}
-              onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+              onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value.replace(/[^0-9+]/g, "") }))}
               required
             />
           </div>
@@ -341,11 +366,13 @@ export default function AdminTenantsPage() {
       <Modal
         open={confirmModal.isOpen}
         onClose={() => setConfirmModal({ isOpen: false, type: null, tenantId: null })}
-        title={confirmModal.type === "deactivate" ? "Deactivate Tenant" : "Delete Tenant"}
+        title={confirmModal.type === "delete" ? "Delete Tenant" : confirmModal.type === "reactivate" ? "Reactivate Tenant" : "Deactivate Tenant"}
       >
         <div className="space-y-4">
           <p className="text-base-content/80">
-            {confirmModal.type === "deactivate"
+            {confirmModal.type === "reactivate"
+              ? "Are you sure you want to reactivate this tenant?"
+              : confirmModal.type === "deactivate"
               ? "Are you sure you want to deactivate this tenant? Their booking will be ended and bed made available."
               : "Are you sure you want to permanently delete this tenant and all their records? This cannot be undone."}
           </p>
@@ -357,10 +384,10 @@ export default function AdminTenantsPage() {
               Cancel
             </button>
             <button
-              className={`btn ${confirmModal.type === "delete" ? "btn-error" : "btn-warning"}`}
+              className={`btn ${confirmModal.type === "delete" ? "btn-error" : confirmModal.type === "reactivate" ? "btn-success" : "btn-warning"}`}
               onClick={confirmAction}
             >
-              {confirmModal.type === "delete" ? "Yes, Delete" : "Yes, Deactivate"}
+              {confirmModal.type === "delete" ? "Yes, Delete" : confirmModal.type === "reactivate" ? "Yes, Reactivate" : "Yes, Deactivate"}
             </button>
           </div>
         </div>

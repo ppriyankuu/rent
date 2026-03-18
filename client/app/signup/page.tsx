@@ -66,7 +66,21 @@ export default function SignupPage() {
     setGoogleLoading(true);
     try {
       const res = await api.get("/api/auth/google");
-      const { url } = res.data.data;
+      const { url, state } = res.data.data;
+
+      const allowedHosts = ["accounts.google.com"];
+      try {
+        const parsedUrl = new URL(url);
+        if (!allowedHosts.includes(parsedUrl.hostname)) {
+          throw new Error("Invalid OAuth URL");
+        }
+      } catch {
+        toast.error("Invalid signup URL received");
+        setGoogleLoading(false);
+        return;
+      }
+
+      localStorage.setItem("google_oauth_state", state);
       window.location.href = url;
     } catch {
       toast.error("Failed to initiate Google signup");
@@ -78,7 +92,7 @@ export default function SignupPage() {
     <div className="min-h-screen flex flex-col">
       <Navbar />
       <div className="flex-1 flex items-center justify-center px-4 py-12">
-        <div className="card w-full max-w-md bg-base-100 shadow-xl border border-base-200">
+        <div className="card w-full max-w-md bg-base-100 shadow-xl border border-base-200 hover:shadow-2xl transition-shadow">
           <div className="card-body">
             <h2 className="card-title text-2xl font-bold justify-center mb-2">
               <UserPlus className="h-6 w-6" /> Create Account

@@ -113,7 +113,7 @@ export default function ComplaintsPage() {
           {complaints.map((c) => (
             <div
               key={c.id}
-              className="card bg-base-100 shadow-sm border border-base-200"
+              className="card bg-base-100 shadow-sm border border-base-200 hover:shadow-md transition-shadow"
             >
               <div className="card-body p-4">
                 <div className="flex flex-col sm:flex-row items-start justify-between gap-2">

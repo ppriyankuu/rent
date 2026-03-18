@@ -13,9 +13,10 @@ export function StatCard({
   value,
   icon: Icon,
   description,
+  className,
 }: StatCardProps) {
   return (
-    <div className="stat bg-base-100 rounded-xl border border-base-200 shadow-sm p-4">
+    <div className={`stat bg-base-100 rounded-xl border border-base-200 shadow-sm p-4 hover:shadow-md transition-shadow${className ? " " + className : ""}`}>
       <div className="flex items-start justify-between">
         <div>
           <div className="stat-title text-xs sm:text-sm">{label}</div>

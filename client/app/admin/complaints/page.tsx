@@ -46,7 +46,7 @@ export default function AdminComplaintsPage() {
     setModalOpen(true);
   };
 
-  const handleReply = async (e: React.FormEvent) => {
+  const handleReply = async (e: React.SubmitEvent) => {
     e.preventDefault();
     if (!selected) return;
     setSubmitting(true);
@@ -75,9 +75,11 @@ export default function AdminComplaintsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
-        <MessageSquare className="h-6 w-6" /> Complaints
-      </h1>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <MessageSquare className="h-6 w-6" /> Complaints
+        </h1>
+      </div>
 
       {complaints.length === 0 ? (
         <div className="text-center py-16">

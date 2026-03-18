@@ -115,7 +115,7 @@ export default function TenantDetailPage() {
     }
   };
 
-  const handleUpdateRent = async (e: React.FormEvent) => {
+  const handleUpdateRent = async (e: React.SubmitEvent) => {
     e.preventDefault();
     setUpdatingRent(true);
     try {
@@ -133,7 +133,7 @@ export default function TenantDetailPage() {
     }
   };
 
-  const handleEndBooking = async (e: React.FormEvent) => {
+  const handleEndBooking = async (e: React.SubmitEvent) => {
     e.preventDefault();
     if (!data?.booking) return;
     setEndingBooking(true);
@@ -173,7 +173,7 @@ export default function TenantDetailPage() {
       </h1>
 
       {/* Profile Info */}
-      <div className="card bg-base-100 shadow-sm border border-base-200 mb-6">
+      <div className="card bg-base-100 shadow-sm border border-base-200 mb-6 hover:shadow-md transition-shadow">
         <div className="card-body p-5">
           <h2 className="font-bold text-lg mb-3">Profile</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
@@ -205,7 +205,7 @@ export default function TenantDetailPage() {
 
       {/* Booking Info */}
       {booking ? (
-        <div className="card bg-base-100 shadow-sm border border-base-200 mb-6">
+        <div className="card bg-base-100 shadow-sm border border-base-200 mb-6 hover:shadow-md transition-shadow">
           <div className="card-body p-5">
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-bold text-lg flex items-center gap-2">

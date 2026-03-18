@@ -18,8 +18,15 @@ import {
   MapPin,
   Shield,
   Edit2,
+  CheckCircle2,
 } from "lucide-react";
 import { DashboardSkeleton } from "@/components/Skeleton";
+
+function getOrdinalSuffix(n: number): string {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return s[(v - 20) % 10] || s[v] || s[0];
+}
 
 interface BookingData {
   booking: {
@@ -50,6 +57,11 @@ interface BookingData {
   amountDue: number;
   isRentPaid: boolean;
   razorpayKeyId: string;
+  settings: {
+    rent_due_start_day: string;
+    rent_due_end_day: string;
+    late_fee_amount: string;
+  };
 }
 
 export default function DashboardPage() {
@@ -83,7 +95,7 @@ export default function DashboardPage() {
     }
   };
 
-  const handleUpdateMoveInDate = async (e: React.FormEvent) => {
+  const handleUpdateMoveInDate = async (e: React.SubmitEvent) => {
     e.preventDefault();
     if (!newMoveInDate) return;
     setUpdatingDate(true);
@@ -184,14 +196,21 @@ export default function DashboardPage() {
     );
   }
 
-  const { booking, bed, room, deposit } = bookingData!;
+  const { booking, bed, room, deposit, settings } = bookingData!;
 
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
 
+      {user?.isActive === false && (
+        <div className="alert alert-error mb-6 shadow-sm rounded-lg">
+          <Shield className="h-5 w-5" />
+          <span>Your account has been deactivated. Please contact the administrator.</span>
+        </div>
+      )}
+
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-8">
         <StatCard
           label="Monthly Rent"
           value={`₹${booking.monthlyRent.toLocaleString()}`}
@@ -232,7 +251,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Booking Details Card */}
-      <div className="card bg-base-100 shadow-md border border-base-200 mb-6">
+      <div className="card bg-base-100 shadow-md border border-base-200 mb-6 hover:shadow-lg transition-shadow">
         <div className="card-body">
           <h2 className="card-title text-lg">Booking Details</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
@@ -269,11 +288,41 @@ export default function DashboardPage() {
               <p className="font-medium">₹{booking.monthlyRent.toLocaleString()}</p>
             </div>
           </div>
+
+          <div className="divider my-4"></div>
+          
+          <div className="bg-base-200/50 p-4 rounded-lg space-y-2">
+            <h3 className="text-sm font-semibold flex items-center gap-2 text-base-content/80">
+              <CalendarDays className="h-4 w-4" /> Payment Window & Late Fee
+            </h3>
+            <p className="text-sm text-base-content/70">
+              Rent can be paid between the <strong>{settings.rent_due_start_day}{getOrdinalSuffix(Number(settings.rent_due_start_day))}</strong> and <strong>{settings.rent_due_end_day}{getOrdinalSuffix(Number(settings.rent_due_end_day))}</strong> of every month.
+            </p>
+            <p className="text-sm text-error/80">
+              A late fee of <strong>₹{settings.late_fee_amount}</strong> will be applied if payment is made after the {settings.rent_due_end_day}{getOrdinalSuffix(Number(settings.rent_due_end_day))}.
+            </p>
+          </div>
         </div>
       </div>
 
+      {/* Rent Paid Confirmation */}
+      {bookingData!.isRentPaid && (booking.status === "active" || booking.status === "deposit_paid") && (
+        <div className="card bg-success/10 border border-success/20 mb-6">
+          <div className="card-body flex flex-row items-center gap-4 py-4">
+            <CheckCircle2 className="h-6 w-6 text-success shrink-0" />
+            <div>
+              <h3 className="font-bold text-success">Rent Paid for This Month</h3>
+              <p className="text-sm text-base-content/60">
+                Your rent payment has been received. View your receipt in the{" "}
+                <Link href="/dashboard/payments" className="link link-primary">payment history</Link>.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Pay Rent Button */}
-      {(booking.status === "active" || booking.status === "deposit_paid") && !bookingData!.isRentPaid && (
+      {user?.isActive !== false && (booking.status === "active" || booking.status === "deposit_paid") && !bookingData!.isRentPaid && (
         <div className="card bg-primary/5 border border-primary/20">
           <div className="card-body flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
@@ -300,7 +349,7 @@ export default function DashboardPage() {
       )}
 
       {/* Retry Deposit Button */}
-      {booking.status === "pending_deposit" && deposit && !deposit.paidAt && (
+      {user?.isActive !== false && booking.status === "pending_deposit" && deposit && !deposit.paidAt && (
         <div className="card bg-warning/10 border border-warning/30 mb-6">
           <div className="card-body flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>

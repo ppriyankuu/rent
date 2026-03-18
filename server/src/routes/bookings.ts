@@ -91,6 +91,11 @@ bookingsRoute.post(
             await db.update(beds).set({ status: "available" }).where(eq(beds.id, bedId));
             return c.json(err("Tenant not found"), 404);
         }
+        if (tenant.isActive === false) {
+            // Rollback: release the bed
+            await db.update(beds).set({ status: "available" }).where(eq(beds.id, bedId));
+            return c.json(err("Your account has been deactivated. Please contact the administrator."), 403);
+        }
 
         const now = nowISO();
         const today = new Date();
@@ -323,7 +328,22 @@ bookingsRoute.get("/my", requireAuth(), async (c) => {
         }
     }
 
-    return c.json(ok({ booking, bed, room, deposit, amountDue, isRentPaid: !!currentMonthPayment, razorpayKeyId: c.env.RAZORPAY_KEY_ID }));
+    const settings = await getAllSettings(db);
+
+    return c.json(ok({ 
+        booking, 
+        bed, 
+        room, 
+        deposit, 
+        amountDue, 
+        isRentPaid: !!currentMonthPayment, 
+        razorpayKeyId: c.env.RAZORPAY_KEY_ID,
+        settings: {
+            rent_due_start_day: settings.rent_due_start_day,
+            rent_due_end_day: settings.rent_due_end_day,
+            late_fee_amount: settings.late_fee_amount,
+        }
+    }));
 });
 
 // ─── PUT /api/bookings/my/move-in-date — TENANT ──────────────

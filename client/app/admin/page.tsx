@@ -5,7 +5,7 @@ import api from "@/lib/api";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { StatCard } from "@/components/StatCard";
 import toast from "react-hot-toast";
-import { Bed, Users, CheckCircle2, Clock, AlertTriangle, Home } from "lucide-react";
+import { Bed, Users, CheckCircle2, Clock, CalendarCheck, Home } from "lucide-react";
 
 interface DashboardData {
   beds: {
@@ -36,12 +36,12 @@ export default function AdminDashboardPage() {
   if (!data) return null;
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-xl sm:text-2xl font-bold">
+    <div className="space-y-8">
+      <h1 className="text-2xl font-bold">
         Admin Dashboard
       </h1>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
         <StatCard label="Total Beds" value={data.beds.total} icon={Bed} />
         <StatCard
           label="Occupied Beds"
@@ -67,7 +67,7 @@ export default function AdminDashboardPage() {
         <StatCard
           label="Active Bookings"
           value={data.tenants.activeBookings}
-          icon={AlertTriangle}
+          icon={CalendarCheck}
         />
       </div>
     </div>

@@ -92,9 +92,11 @@ export default function PaymentsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
-        <CreditCard className="h-6 w-6" /> Payment History
-      </h1>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <CreditCard className="h-6 w-6" /> Payment History
+        </h1>
+      </div>
 
       {payments.length === 0 ? (
         <div className="text-center py-16">
@@ -102,7 +104,7 @@ export default function PaymentsPage() {
           <p className="text-base-content/60">No payments yet.</p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto rounded-lg border border-base-200">
           <table className="table table-zebra">
             <thead>
               <tr>
@@ -143,6 +145,7 @@ export default function PaymentsPage() {
                       <button
                         className="btn btn-ghost btn-xs"
                         onClick={() => viewReceipt(p.id)}
+                        aria-label="View receipt"
                       >
                         <Receipt className="h-3 w-3" /> View
                       </button>
@@ -162,61 +165,57 @@ export default function PaymentsPage() {
         title="Payment Receipt"
       >
         {receipt && (
-          <div className="space-y-3 text-sm">
+          <div className="space-y-4 text-sm max-w-lg w-full overflow-hidden">
+
+            {/* Header */}
             <div className="text-center border-b border-base-200 pb-3">
               <p className="font-bold text-lg">{receipt.receiptNumber}</p>
               <p className="text-base-content/60">Rent Payment Receipt</p>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <p className="text-base-content/60">Tenant</p>
-                <p className="font-medium">{receipt.tenant.name}</p>
-              </div>
-              <div>
-                <p className="text-base-content/60">Email</p>
-                <p className="font-medium">{receipt.tenant.email}</p>
-              </div>
-              <div>
-                <p className="text-base-content/60">Room</p>
-                <p className="font-medium">{receipt.room}</p>
-              </div>
-              <div>
-                <p className="text-base-content/60">Bed</p>
-                <p className="font-medium">{receipt.bed}</p>
-              </div>
-              <div>
-                <p className="text-base-content/60">Rent Month</p>
-                <p className="font-medium">{receipt.rentMonth}</p>
-              </div>
-              <div>
-                <p className="text-base-content/60">Payment Type</p>
-                <p className="font-medium capitalize">{receipt.paymentType}</p>
-              </div>
+
+            {/* Info Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+              <Field label="Tenant" value={receipt.tenant.name} />
+              <Field label="Email" value={receipt.tenant.email} />
+              <Field label="Room" value={receipt.room} />
+              <Field label="Bed" value={receipt.bed} />
+              <Field label="Rent Month" value={receipt.rentMonth} />
+              <Field label="Payment Type" value={receipt.paymentType} capitalize />
+
             </div>
+
             <div className="divider my-1"></div>
+
+            {/* Amount Section */}
             <div className="space-y-1">
               <div className="flex justify-between">
                 <span>Rent Amount</span>
                 <span>₹{receipt.rentAmount.toLocaleString()}</span>
               </div>
+
               {receipt.lateFee > 0 && (
                 <div className="flex justify-between text-error">
                   <span>Late Fee</span>
                   <span>₹{receipt.lateFee.toLocaleString()}</span>
                 </div>
               )}
+
               <div className="flex justify-between font-bold text-base border-t border-base-200 pt-1">
                 <span>Total</span>
                 <span>₹{receipt.totalAmount.toLocaleString()}</span>
               </div>
             </div>
-            <div className="text-center text-xs text-base-content/50 mt-2">
-              Paid on{" "}
-              {new Date(receipt.paidAt).toLocaleString("en-IN")}
+
+            {/* Footer */}
+            <div className="text-center text-xs text-base-content/50 mt-2 break-words">
+              Paid on {new Date(receipt.paidAt).toLocaleString("en-IN")}
               {receipt.razorpayPaymentId && (
                 <> • Razorpay ID: {receipt.razorpayPaymentId}</>
               )}
             </div>
+
+            {/* Action */}
             <button
               className="btn btn-outline btn-sm w-full mt-2"
               onClick={() => window.print()}
@@ -226,6 +225,35 @@ export default function PaymentsPage() {
           </div>
         )}
       </Modal>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  value,
+  capitalize = false,
+}: {
+  label: string;
+  value: string;
+  capitalize?: boolean;
+}) {
+  const length = value?.length || 0;
+
+  // Dynamic text sizing based on length
+  let sizeClass = "text-sm";
+  if (length > 25) sizeClass = "text-xs";
+  if (length > 40) sizeClass = "text-[11px]";
+
+  return (
+    <div className="min-w-0">
+      <p className="text-base-content/60">{label}</p>
+      <p
+        className={`font-medium ${sizeClass} break-words ${capitalize ? "capitalize" : ""
+          }`}
+      >
+        {value}
+      </p>
     </div>
   );
 }

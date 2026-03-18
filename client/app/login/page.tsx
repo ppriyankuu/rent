@@ -18,7 +18,7 @@ export default function LoginPage() {
   const { login } = useAuth();
   const router = useRouter();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SubmitEvent) => {
     e.preventDefault();
     setLoading(true);
 
@@ -67,7 +67,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex flex-col">
       <Navbar />
       <div className="flex-1 flex items-center justify-center px-4 py-12">
-        <div className="card w-full max-w-md bg-base-100 shadow-xl border border-base-200">
+        <div className="card w-full max-w-md bg-base-100 shadow-xl border border-base-200 hover:shadow-2xl transition-shadow">
           <div className="card-body">
             <h2 className="card-title text-2xl font-bold justify-center mb-2">
               <LogIn className="h-6 w-6" /> Welcome Back

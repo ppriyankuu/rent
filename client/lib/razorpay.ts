@@ -52,6 +52,15 @@ export async function openRazorpayCheckout(
       description: options.description || "Payment",
       order_id: options.orderId,
       prefill: options.prefill || {},
+      config: {
+        display: {
+          blocks: {
+            utib: { name: "Pay using UPI", instruments: [{ method: "upi" }] },
+          },
+          sequence: ["block.utib"],
+          preferences: { show_default_blocks: true },
+        },
+      },
       handler: (response: any) => {
         resolve({
           razorpayOrderId: response.razorpay_order_id,

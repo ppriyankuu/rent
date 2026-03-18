@@ -54,7 +54,7 @@ export default function ProfilePage() {
       {/* Centered card */}
       <div className="flex justify-center">
         <div className="w-full max-w-lg">
-          <div className="card bg-base-100 shadow-md border border-base-200">
+          <div className="card bg-base-100 shadow-md border border-base-200 hover:shadow-lg transition-shadow">
             <div className="card-body">
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="form-control">
@@ -94,7 +94,7 @@ export default function ProfilePage() {
                   <input
                     type="tel"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => setPhone(e.target.value.replace(/[^0-9+]/g, ""))}
                     className="input input-bordered w-full"
                     placeholder="Your phone number"
                   />
