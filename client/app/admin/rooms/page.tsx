@@ -49,6 +49,19 @@ export default function AdminRoomsPage() {
     isOpen: false,
     roomId: null,
   });
+  const [confirmBedModal, setConfirmBedModal] = useState<{
+    isOpen: boolean;
+    roomId: number | null;
+    bedId: number | null;
+  }>({
+    isOpen: false,
+    roomId: null,
+    bedId: null,
+  });
+  const [newBedForRoom, setNewBedForRoom] = useState<{
+    name: string;
+    monthlyRent: number;
+  }>({ name: "", monthlyRent: 0 });
   const [deleting, setDeleting] = useState(false);
 
   // Form state for new room
@@ -146,9 +159,9 @@ export default function AdminRoomsPage() {
     setSavingEdit(true);
     try {
       await api.put(`/api/rooms/${editingRoom.id}`, { name: editingRoom.name, description: editingRoom.description });
-      
+
       const updates = Object.entries(editingBeds).map(([bedId, data]) => {
-         return api.put(`/api/rooms/${editingRoom.id}/beds/${bedId}`, data);
+        return api.put(`/api/rooms/${editingRoom.id}/beds/${bedId}`, data);
       });
       await Promise.all(updates);
 
@@ -163,7 +176,6 @@ export default function AdminRoomsPage() {
   };
 
   const handleDeleteBed = async (roomId: number, bedId: number) => {
-    if (!confirm("Are you sure you want to delete this bed?")) return;
     try {
       await api.delete(`/api/rooms/${roomId}/beds/${bedId}`);
       toast.success("Bed deleted successfully");
@@ -179,6 +191,29 @@ export default function AdminRoomsPage() {
     }
   };
 
+  const handleAddBedToRoom = async () => {
+    if (!editingRoom) return;
+
+    if (!newBedForRoom.name || newBedForRoom.monthlyRent <= 0) {
+      toast.error("Enter valid bed details");
+      return;
+    }
+
+    try {
+      await api.post(`/api/rooms/${editingRoom.id}/beds`, {
+        name: newBedForRoom.name,
+        monthlyRent: newBedForRoom.monthlyRent,
+      });
+
+      toast.success("Bed added successfully");
+
+      setNewBedForRoom({ name: "", monthlyRent: 0 });
+      fetchRooms();
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, "Failed to add bed"));
+    }
+  };
+
   const confirmDeleteRoom = async () => {
     if (!confirmModal.roomId) return;
     setDeleting(true);
@@ -191,6 +226,35 @@ export default function AdminRoomsPage() {
       toast.error(getErrorMessage(err, "Failed to delete room"));
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const confirmDeleteBed = async () => {
+    if (!confirmBedModal.roomId || !confirmBedModal.bedId) return;
+
+    try {
+      await api.delete(
+        `/api/rooms/${confirmBedModal.roomId}/beds/${confirmBedModal.bedId}`
+      );
+
+      toast.success("Bed deleted successfully");
+
+      setEditingRoom((prev) =>
+        prev
+          ? { ...prev, beds: prev.beds.filter((b) => b.id !== confirmBedModal.bedId) }
+          : null
+      );
+
+      setEditingBeds((prev) => {
+        const next = { ...prev };
+        delete next[confirmBedModal.bedId!];
+        return next;
+      });
+
+      setConfirmBedModal({ isOpen: false, roomId: null, bedId: null });
+      fetchRooms();
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, "Failed to delete bed"));
     }
   };
 
@@ -251,8 +315,8 @@ export default function AdminRoomsPage() {
                 <div className="flex items-center justify-between mb-1">
                   <h3 className="card-title text-lg m-0">{room.name}</h3>
                   <div className="flex gap-1">
-                    <button 
-                      className="btn btn-ghost btn-xs text-error px-2" 
+                    <button
+                      className="btn btn-ghost btn-xs text-error px-2"
                       onClick={() => setConfirmModal({ isOpen: true, roomId: room.id })}
                       title="Delete Room"
                     >
@@ -431,13 +495,57 @@ export default function AdminRoomsPage() {
                   <button
                     type="button"
                     className="btn btn-ghost btn-sm btn-square"
-                    onClick={() => handleDeleteBed(editingRoom.id, bed.id)}
+                    onClick={() =>
+                      setConfirmBedModal({
+                        isOpen: true,
+                        roomId: editingRoom.id,
+                        bedId: bed.id,
+                      })
+                    }
                     title="Delete Bed"
                   >
                     <Trash2 className="h-4 w-4 text-error" />
                   </button>
                 </div>
               ))}
+              <div className="mt-4 p-3 rounded-lg bg-base-200/50 space-y-2">
+                <p className="text-sm font-medium">Add New Bed</p>
+
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    className="input input-bordered input-sm flex-1"
+                    placeholder="Bed name"
+                    value={newBedForRoom.name}
+                    onChange={(e) =>
+                      setNewBedForRoom((prev) => ({ ...prev, name: e.target.value }))
+                    }
+                  />
+
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    className="input input-bordered input-sm w-28"
+                    placeholder="Rent"
+                    value={newBedForRoom.monthlyRent}
+                    onChange={(e) =>
+                      setNewBedForRoom((prev) => ({
+                        ...prev,
+                        monthlyRent: Number(e.target.value) || 0,
+                      }))
+                    }
+                  />
+
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={handleAddBedToRoom}
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -452,7 +560,7 @@ export default function AdminRoomsPage() {
         </form>
       </Modal>
 
-      {/* Confirmation Modal */}
+      {/* Confirmation Modals */}
       <Modal
         open={confirmModal.isOpen}
         onClose={() => setConfirmModal({ isOpen: false, roomId: null })}
@@ -475,6 +583,36 @@ export default function AdminRoomsPage() {
               disabled={deleting}
             >
               {deleting && <span className="loading loading-spinner loading-sm"></span>}
+              Yes, Delete
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={confirmBedModal.isOpen}
+        onClose={() => setConfirmBedModal({ isOpen: false, roomId: null, bedId: null })}
+        title="Delete Bed"
+      >
+        <div className="space-y-4">
+          <p className="text-base-content/80">
+            Are you sure you want to delete this bed? This cannot be undone.
+          </p>
+
+          <div className="flex gap-3 justify-end mt-6">
+            <button
+              className="btn btn-ghost"
+              onClick={() =>
+                setConfirmBedModal({ isOpen: false, roomId: null, bedId: null })
+              }
+            >
+              Cancel
+            </button>
+
+            <button
+              className="btn btn-error"
+              onClick={confirmDeleteBed}
+            >
               Yes, Delete
             </button>
           </div>
