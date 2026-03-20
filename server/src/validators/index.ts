@@ -163,6 +163,13 @@ export const adminCreateTenantSchema = z.object({
     bedId: z.number().int().positive().optional(),  // optionally assign a bed immediately
 });
 
+// ─── Admin: deposit deduction ─────────────────────────────────
+
+export const createDeductionSchema = z.object({
+    amount: z.number().positive("Amount must be greater than zero"),
+    reason: z.string().min(1, "Reason is required"),
+});
+
 // ─── Type exports (inferred from schemas) ─────────────────────
 export type SignupInput = z.infer<typeof signupSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
@@ -177,3 +184,4 @@ export type CreateComplaintInput = z.infer<typeof createComplaintSchema>;
 export type UpdateComplaintInput = z.infer<typeof updateComplaintSchema>;
 export type GoogleCallbackInput = z.infer<typeof googleCallbackSchema>;
 export type AdminCreateTenantInput = z.infer<typeof adminCreateTenantSchema>;
+export type CreateDeductionInput = z.infer<typeof createDeductionSchema>;

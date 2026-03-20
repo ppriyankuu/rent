@@ -19,6 +19,7 @@ import {
   Shield,
   Edit2,
   CheckCircle2,
+  DollarSign,
 } from "lucide-react";
 import { DashboardSkeleton } from "@/components/Skeleton";
 
@@ -64,6 +65,25 @@ interface BookingData {
   };
 }
 
+interface Deduction {
+  id: number;
+  depositId: number;
+  tenantId: number;
+  bookingId: number;
+  amount: number;
+  reason: string;
+  deductedBy: number;
+  createdAt: string;
+  adminName: string;
+  adminEmail: string;
+}
+
+interface DepositBalance {
+  originalAmount: number;
+  totalDeducted: number;
+  remainingBalance: number;
+}
+
 export default function DashboardPage() {
   const [bookingData, setBookingData] = useState<BookingData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -73,10 +93,17 @@ export default function DashboardPage() {
   const [newMoveInDate, setNewMoveInDate] = useState("");
   const [updatingDate, setUpdatingDate] = useState(false);
   const [retryingDeposit, setRetryingDeposit] = useState(false);
+  const [deductions, setDeductions] = useState<Deduction[]>([]);
+  const [depositBalance, setDepositBalance] = useState<DepositBalance | null>(null);
   const { user } = useAuth();
 
   useEffect(() => {
-    fetchBooking();
+    Promise.all([
+      fetchBooking(),
+      fetchDeductions(),
+      fetchDepositBalance(),
+    ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchBooking = async () => {
@@ -92,6 +119,24 @@ export default function DashboardPage() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchDeductions = async () => {
+    try {
+      const res = await api.get("/api/bookings/my/deductions");
+      setDeductions(res.data.data || []);
+    } catch {
+      // Ignore errors - deductions are optional
+    }
+  };
+
+  const fetchDepositBalance = async () => {
+    try {
+      const res = await api.get("/api/bookings/my/deposit-balance");
+      setDepositBalance(res.data.data);
+    } catch {
+      // Ignore errors - balance is optional
     }
   };
 
@@ -258,11 +303,10 @@ export default function DashboardPage() {
             <div>
               <p className="text-sm text-base-content/60">Status</p>
               <span
-                className={`badge ${
-                  booking.status === "active"
-                    ? "badge-success"
-                    : "badge-warning"
-                }`}
+                className={`badge ${booking.status === "active"
+                  ? "badge-success"
+                  : "badge-warning"
+                  }`}
               >
                 {booking.status}
               </span>
@@ -290,7 +334,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="divider my-4"></div>
-          
+
           <div className="bg-base-200/50 p-4 rounded-lg space-y-2">
             <h3 className="text-sm font-semibold flex items-center gap-2 text-base-content/80">
               <CalendarDays className="h-4 w-4" /> Payment Window & Late Fee
@@ -304,6 +348,59 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Deposit Deductions */}
+      {deductions.length > 0 && depositBalance && (
+        <div className="card bg-base-100 shadow-md border border-base-200 mb-6 hover:shadow-lg transition-shadow">
+          <div className="card-body">
+            <h2 className="card-title text-lg flex items-center gap-2">
+              <DollarSign className="h-5 w-5" /> Deposit Deductions
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
+              <div>
+                <p className="text-sm text-base-content/60">Original Deposit</p>
+                <p className="font-medium">₹{depositBalance.originalAmount.toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-sm text-base-content/60">Total Deducted</p>
+                <p className="font-medium text-error">₹{depositBalance.totalDeducted.toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-sm text-base-content/60">Remaining Balance</p>
+                <p className="font-medium text-success">₹{depositBalance.remainingBalance.toLocaleString()}</p>
+              </div>
+            </div>
+
+            <div className="divider my-4"></div>
+
+            <h3 className="text-sm font-semibold text-base-content/80 mb-2">Deduction History</h3>
+            <div className="overflow-x-auto">
+              <div className="max-h-55 overflow-y-auto pr-2">
+                <table className="table table-sm">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Amount</th>
+                      <th>Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {deductions.map((d) => (
+                      <tr key={d.id}>
+                        <td className="text-xs">
+                          {new Date(d.createdAt).toLocaleDateString("en-IN")}
+                        </td>
+                        <td className="font-medium text-error">₹{d.amount.toLocaleString()}</td>
+                        <td className="text-sm">{d.reason}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Rent Paid Confirmation */}
       {bookingData!.isRentPaid && (booking.status === "active" || booking.status === "deposit_paid") && (

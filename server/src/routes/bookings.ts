@@ -24,7 +24,7 @@ import type { Env } from "../types/env";
 import type { JwtPayload } from "../types/api";
 import { ok, err } from "../types/api";
 import { createDb } from "../db/client";
-import { bookings, beds, deposits, users, payments, rooms } from "../db/schema";
+import { bookings, beds, deposits, users, payments, rooms, depositDeductions } from "../db/schema";
 import {
     createBookingSchema,
     endBookingSchema,
@@ -32,6 +32,7 @@ import {
 } from "../validators";
 import { getAllSettings } from "../services/settings.service";
 import { createRazorpayOrder } from "../services/razorpay.service";
+import { getTenantDeductions, getDepositBalance } from "../services/deposit.service";
 import { verifyRazorpaySignature, nowISO, getNextRentDueDate, toDateString, generateReceiptNumber } from "../utils";
 import { requireAdmin, requireAuth } from "../middleware/auth";
 
@@ -330,13 +331,13 @@ bookingsRoute.get("/my", requireAuth(), async (c) => {
 
     const settings = await getAllSettings(db);
 
-    return c.json(ok({ 
-        booking, 
-        bed, 
-        room, 
-        deposit, 
-        amountDue, 
-        isRentPaid: !!currentMonthPayment, 
+    return c.json(ok({
+        booking,
+        bed,
+        room,
+        deposit,
+        amountDue,
+        isRentPaid: !!currentMonthPayment,
         razorpayKeyId: c.env.RAZORPAY_KEY_ID,
         settings: {
             rent_due_start_day: settings.rent_due_start_day,
@@ -507,5 +508,28 @@ bookingsRoute.post(
         return c.json(ok({ message: "Booking ended. Bed is now available." }));
     }
 );
+
+// ─── GET /api/bookings/my/deductions — TENANT ───────────────
+bookingsRoute.get("/my/deductions", requireAuth(), async (c) => {
+    const { sub: tenantId } = c.get("user");
+    const db = createDb(c.env.DB);
+
+    const deductions = await getTenantDeductions(db, tenantId);
+    return c.json(ok(deductions));
+});
+
+// ─── GET /api/bookings/my/deposit-balance — TENANT ───────────────
+bookingsRoute.get("/my/deposit-balance", requireAuth(), async (c) => {
+    const { sub: tenantId } = c.get("user");
+    const db = createDb(c.env.DB);
+
+    const balance = await getDepositBalance(db, tenantId);
+
+    if (!balance) {
+        return c.json(err("No deposit found for your booking"), 404);
+    }
+
+    return c.json(ok(balance));
+});
 
 export default bookingsRoute;

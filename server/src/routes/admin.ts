@@ -17,12 +17,13 @@ import type { Env } from "../types/env";
 import type { JwtPayload } from "../types/api";
 import { ok, err } from "../types/api";
 import { createDb } from "../db/client";
-import { users, bookings, beds, rooms, payments, deposits, complaints } from "../db/schema";
-import { updateRentSchema, updateSettingsSchema, adminCreateTenantSchema, paginationSchema, type PaginatedResponse } from "../validators";
+import { users, bookings, beds, rooms, payments, deposits, complaints, depositDeductions } from "../db/schema";
+import { updateRentSchema, updateSettingsSchema, adminCreateTenantSchema, paginationSchema, createDeductionSchema, type PaginatedResponse } from "../validators";
 import { requireAdmin } from "../middleware/auth";
 import { adminDeleteRateLimit } from "../middleware/rateLimit";
 import { getAllSettings, updateSettings } from "../services/settings.service";
 import { getTenantPayments } from "../services/payment.service";
+import { createDepositDeduction, deleteDepositDeduction, getTenantDeductions, getDepositBalance } from "../services/deposit.service";
 import { omit, hashPassword, nowISO, escapeCSV } from "../utils";
 
 type Variables = { user: JwtPayload };
@@ -663,6 +664,78 @@ adminRoute.get("/export/tenants", async (c) => {
             "Content-Disposition": `attachment; filename="tenants-${new Date().toISOString().slice(0, 10)}.csv"`,
         },
     });
+});
+
+// ─── POST /api/admin/tenants/:tenantId/deductions — charge fine ───────
+adminRoute.post(
+    "/tenants/:tenantId/deductions",
+    zValidator("json", createDeductionSchema),
+    async (c) => {
+        const tenantId = parseInt(c.req.param("tenantId"), 10);
+        if (isNaN(tenantId)) return c.json(err("Invalid tenant ID"), 400);
+
+        const { sub: adminId } = c.get("user");
+        const { amount, reason } = c.req.valid("json");
+
+        try {
+            const db = createDb(c.env.DB);
+            const result = await createDepositDeduction(db, tenantId, adminId, amount, reason);
+
+            return c.json(ok({
+                message: "Deduction charged successfully",
+                deduction: result.deduction,
+                balance: result.balance,
+            }), 201);
+        } catch (e) {
+            const message = e instanceof Error ? e.message : "Failed to create deduction";
+            return c.json(err(message), 400);
+        }
+    }
+);
+
+// ─── GET /api/admin/tenants/:tenantId/deductions — list all ───────
+adminRoute.get("/tenants/:tenantId/deductions", async (c) => {
+    const tenantId = parseInt(c.req.param("tenantId"), 10);
+    if (isNaN(tenantId)) return c.json(err("Invalid tenant ID"), 400);
+
+    const db = createDb(c.env.DB);
+    const deductions = await getTenantDeductions(db, tenantId);
+
+    return c.json(ok(deductions));
+});
+
+// ─── GET /api/admin/tenants/:tenantId/deposit-balance ───────
+adminRoute.get("/tenants/:tenantId/deposit-balance", async (c) => {
+    const tenantId = parseInt(c.req.param("tenantId"), 10);
+    if (isNaN(tenantId)) return c.json(err("Invalid tenant ID"), 400);
+
+    const db = createDb(c.env.DB);
+    const balance = await getDepositBalance(db, tenantId);
+
+    if (!balance) {
+        return c.json(err("No deposit found for this tenant"), 404);
+    }
+
+    return c.json(ok(balance));
+});
+
+// ─── DELETE /api/admin/deductions/:id — reverse deduction ───────
+adminRoute.delete("/deductions/:id", async (c) => {
+    const deductionId = parseInt(c.req.param("id"), 10);
+    if (isNaN(deductionId)) return c.json(err("Invalid deduction ID"), 400);
+
+    try {
+        const db = createDb(c.env.DB);
+        const result = await deleteDepositDeduction(db, deductionId);
+
+        return c.json(ok({
+            message: "Deduction reversed successfully",
+            balance: result.balance,
+        }));
+    } catch (e) {
+        const message = e instanceof Error ? e.message : "Failed to delete deduction";
+        return c.json(err(message), 400);
+    }
 });
 
 export default adminRoute;

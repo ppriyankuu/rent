@@ -164,6 +164,26 @@ export const complaints = sqliteTable("complaints", {
 ]));
 
 // ─────────────────────────────────────────────────────────────
+// DEPOSIT DEDUCTIONS
+// Tracks individual fines/deductions charged by admin from tenant's deposit.
+// Multiple deductions can occur during a booking (e.g., for damages).
+// ─────────────────────────────────────────────────────────────
+export const depositDeductions = sqliteTable("deposit_deductions", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    depositId: integer("deposit_id").notNull().references(() => deposits.id),
+    tenantId: integer("tenant_id").notNull().references(() => users.id),
+    bookingId: integer("booking_id").notNull().references(() => bookings.id),
+    amount: real("amount").notNull(),
+    reason: text("reason").notNull(),
+    deductedBy: integer("deducted_by").notNull().references(() => users.id), // admin who charged
+    createdAt: text("created_at").notNull(),
+}, (table) => ([
+    index("idx_deposit_deductions_tenant_id").on(table.tenantId),
+    index("idx_deposit_deductions_deposit_id").on(table.depositId),
+    index("idx_deposit_deductions_booking_id").on(table.bookingId),
+]));
+
+// ─────────────────────────────────────────────────────────────
 // SETTINGS
 // Key-value store for admin-configurable values.
 // Stored in DB so admin can change them without redeploying code.
@@ -223,6 +243,13 @@ export const complaintsRelations = relations(complaints, ({ one }) => ({
     tenant: one(users, { fields: [complaints.tenantId], references: [users.id] }),
 }));
 
+export const depositDeductionsRelations = relations(depositDeductions, ({ one }) => ({
+    deposit: one(deposits, { fields: [depositDeductions.depositId], references: [deposits.id] }),
+    tenant: one(users, { fields: [depositDeductions.tenantId], references: [users.id] }),
+    booking: one(bookings, { fields: [depositDeductions.bookingId], references: [bookings.id] }),
+    admin: one(users, { fields: [depositDeductions.deductedBy], references: [users.id] }),
+}));
+
 // ─────────────────────────────────────────────────────────────
 // TYPE EXPORTS
 // Drizzle infers TypeScript types from the schema automatically.
@@ -248,5 +275,8 @@ export type NewPayment = typeof payments.$inferInsert;
 
 export type Complaint = typeof complaints.$inferSelect;
 export type NewComplaint = typeof complaints.$inferInsert;
+
+export type DepositDeduction = typeof depositDeductions.$inferSelect;
+export type NewDepositDeduction = typeof depositDeductions.$inferInsert;
 
 export type Setting = typeof settings.$inferSelect;
