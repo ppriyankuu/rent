@@ -42,6 +42,9 @@ export default function ProfilePage() {
 
   if (loading) return <LoadingSpinner text="Loading profile..." />;
 
+  const missingName = !name.trim();
+  const missingPhone = !phone.trim();
+
   return (
     <div>
       {/* Header aligned with other pages */}
@@ -82,9 +85,16 @@ export default function ProfilePage() {
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="input input-bordered w-full"
+                    className={`input input-bordered w-full ${missingName ? "input-error pr-10" : ""}`}
                     required
                   />
+                  {missingName && (
+                    <label className="label">
+                      <span className="label-text-alt text-error font-medium">
+                        ⚠️ Please fill this field
+                      </span>
+                    </label>
+                  )}
                 </div>
 
                 <div className="form-control">
@@ -95,9 +105,16 @@ export default function ProfilePage() {
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value.replace(/[^0-9+]/g, ""))}
-                    className="input input-bordered w-full"
+                    className={`input input-bordered w-full ${missingPhone ? "input-error pr-10" : ""}`}
                     placeholder="Your phone number"
                   />
+                  {missingPhone && (
+                    <label className="label">
+                      <span className="label-text-alt text-error font-medium">
+                        Please fill this field!
+                      </span>
+                    </label>
+                  )}
                 </div>
 
                 <button

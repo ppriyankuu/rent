@@ -22,6 +22,7 @@ import {
   DollarSign,
 } from "lucide-react";
 import { DashboardSkeleton } from "@/components/Skeleton";
+import { formatStatus } from "@/lib/formatStatus";
 
 function getOrdinalSuffix(n: number): string {
   const s = ["th", "st", "nd", "rd"];
@@ -199,6 +200,17 @@ export default function DashboardPage() {
     if (!bookingData?.deposit) return;
     setRetryingDeposit(true);
     try {
+      // Re-check bed availability before allowing payment retry
+      // The bed might have been taken by another user while this user was retrying
+      const bookingRes = await api.get("/api/bookings/my");
+      const currentBedStatus = bookingRes.data.data?.bed?.status;
+
+      if (currentBedStatus !== "available") {
+        toast.error("This bed is no longer available. Your booking has been cancelled.");
+        setNoBooking(true);
+        return;
+      }
+
       const result = await openRazorpayCheckout({
         razorpayKeyId: bookingData.razorpayKeyId,
         orderId: bookingData.deposit.razorpayOrderId || "",
@@ -220,6 +232,16 @@ export default function DashboardPage() {
       }
     } finally {
       setRetryingDeposit(false);
+    }
+  };
+
+  const handleCancelBooking = async () => {
+    try {
+      await api.post("/api/bookings/my/cancel");
+      toast.success("Booking cancelled. You can now book a different bed.");
+      setNoBooking(true);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, "Failed to cancel booking"));
     }
   };
 
@@ -291,7 +313,7 @@ export default function DashboardPage() {
           label="Deposit"
           value={deposit ? `₹${deposit.amount.toLocaleString()}` : "N/A"}
           icon={Shield}
-          description={deposit?.status || ""}
+          description={deposit?.status ? formatStatus(deposit.status) : ""}
         />
       </div>
 
@@ -308,7 +330,7 @@ export default function DashboardPage() {
                   : "badge-warning"
                   }`}
               >
-                {booking.status}
+                {formatStatus(booking.status)}
               </span>
             </div>
             <div>
@@ -448,26 +470,34 @@ export default function DashboardPage() {
       {/* Retry Deposit Button */}
       {user?.isActive !== false && booking.status === "pending_deposit" && deposit && !deposit.paidAt && (
         <div className="card bg-warning/10 border border-warning/30 mb-6">
-          <div className="card-body flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="card-body flex flex-col items-start gap-4">
             <div>
               <h3 className="font-bold text-lg flex items-center gap-2 text-warning-content">
                 <Shield className="h-5 w-5" /> Pending Deposit
               </h3>
               <p className="text-sm text-base-content/80">
-                Your bed is reserved, but your deposit payment is pending. Please complete the payment to activate your booking.
+                Complete your deposit payment to secure your booking. The bed will be reserved once payment is confirmed.
               </p>
             </div>
-            <button
-              onClick={handleRetryDeposit}
-              className={`btn btn-warning w-full sm:w-auto ${retryingDeposit ? "btn-disabled" : ""}`}
-              disabled={retryingDeposit}
-            >
-              {retryingDeposit ? (
-                <span className="loading loading-spinner loading-sm"></span>
-              ) : (
-                <>Pay Deposit ₹{deposit.amount.toLocaleString()}</>
-              )}
-            </button>
+            <div className="flex flex-col gap-2 w-full">
+              <button
+                onClick={handleRetryDeposit}
+                className={`btn btn-warning w-full ${retryingDeposit ? "btn-disabled" : ""}`}
+                disabled={retryingDeposit}
+              >
+                {retryingDeposit ? (
+                  <span className="loading loading-spinner loading-sm"></span>
+                ) : (
+                  <>Pay Deposit ₹{deposit.amount.toLocaleString()}</>
+                )}
+              </button>
+              <button
+                onClick={handleCancelBooking}
+                className="btn btn-ghost btn-sm text-error w-full"
+              >
+                Cancel Booking
+              </button>
+            </div>
           </div>
         </div>
       )}

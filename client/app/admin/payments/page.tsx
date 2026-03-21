@@ -8,6 +8,7 @@ import { Modal } from "@/components/Modal";
 import toast from "react-hot-toast";
 import { CreditCard, Plus, Download } from "lucide-react";
 import { TableSkeleton } from "@/components/Skeleton";
+import { formatStatus } from "@/lib/formatStatus";
 
 interface Payment {
   id: number;
@@ -166,7 +167,7 @@ export default function AdminPaymentsPage() {
                   <td><span className="badge badge-outline badge-sm">{p.type}</span></td>
                   <td>
                     <span className={`badge badge-sm ${p.status === "completed" ? "badge-success" : p.status === "pending" ? "badge-warning" : "badge-error"}`}>
-                      {p.status}
+                      {formatStatus(p.status)}
                     </span>
                   </td>
                   <td className="text-sm">{p.paidAt ? new Date(p.paidAt).toLocaleDateString("en-IN") : "—"}</td>

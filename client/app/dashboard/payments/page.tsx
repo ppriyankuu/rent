@@ -208,7 +208,7 @@ export default function PaymentsPage() {
             </div>
 
             {/* Footer */}
-            <div className="text-center text-xs text-base-content/50 mt-2 break-words">
+            <div className="text-center text-xs text-base-content/50 mt-2 wrap-break-word">
               Paid on {new Date(receipt.paidAt).toLocaleString("en-IN")}
               {receipt.razorpayPaymentId && (
                 <> • Razorpay ID: {receipt.razorpayPaymentId}</>
@@ -249,7 +249,7 @@ function Field({
     <div className="min-w-0">
       <p className="text-base-content/60">{label}</p>
       <p
-        className={`font-medium ${sizeClass} break-words ${capitalize ? "capitalize" : ""
+        className={`font-medium ${sizeClass} wrap-break-word ${capitalize ? "capitalize" : ""
           }`}
       >
         {value}

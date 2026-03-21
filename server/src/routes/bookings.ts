@@ -61,40 +61,35 @@ bookingsRoute.post(
             .get();
 
         if (existingBooking) {
-            return c.json(err("You already have an active or pending booking"), 409);
+            // Check if it's a pending_deposit booking and provide helpful message
+            const existingBookingFull = await db
+                .select({ status: bookings.status })
+                .from(bookings)
+                .where(eq(bookings.id, existingBooking.id))
+                .get();
+
+            if (existingBookingFull?.status === "pending_deposit") {
+                return c.json(err("You have a pending deposit payment. Please complete the payment or cancel your booking from the dashboard before booking another bed."), 409);
+            }
+            return c.json(err("You already have an active booking"), 409);
         }
 
         // Get bed info first
         const bed = await db.select().from(beds).where(eq(beds.id, bedId)).get();
         if (!bed) return c.json(err("Bed not found"), 404);
 
-        // OPTIMISTIC LOCKING: Atomically reserve the bed
-        // This prevents race conditions where two users try to book the same bed
-        const reserveResult = await db
-            .update(beds)
-            .set({ status: "reserved" })
-            .where(and(eq(beds.id, bedId), eq(beds.status, "available")))
-            .returning({ id: beds.id });
-
-        if (reserveResult.length === 0) {
-            // Bed was not available (another request got it first, or status changed)
-            const currentBed = await db.select({ status: beds.status }).from(beds).where(eq(beds.id, bedId)).get();
-            return c.json(err(`Bed is currently ${currentBed?.status || "unavailable"}`), 409);
+        // Check if bed is available (without reserving it yet)
+        // Bed will only be reserved after successful deposit payment
+        if (bed.status !== "available") {
+            return c.json(err(`Bed is currently ${bed.status}`), 409);
         }
-
-        // Bed is now reserved for this user - proceed with booking
-        // If anything fails from here, we must release the bed
 
         // Get tenant info
         const tenant = await db.select().from(users).where(eq(users.id, tenantId)).get();
         if (!tenant) {
-            // Rollback: release the bed
-            await db.update(beds).set({ status: "available" }).where(eq(beds.id, bedId));
             return c.json(err("Tenant not found"), 404);
         }
         if (tenant.isActive === false) {
-            // Rollback: release the bed
-            await db.update(beds).set({ status: "available" }).where(eq(beds.id, bedId));
             return c.json(err("Your account has been deactivated. Please contact the administrator."), 403);
         }
 
@@ -102,6 +97,7 @@ bookingsRoute.post(
         const today = new Date();
 
         // Create booking record (status = "pending_deposit" — becomes "active" after deposit verified)
+        // NOTE: Bed is NOT reserved yet. It will be reserved only after deposit payment is verified.
         let booking;
         try {
             booking = await db
@@ -118,15 +114,22 @@ bookingsRoute.post(
                 .returning()
                 .get();
         } catch (bookingError) {
-            // Rollback: release the bed
-            await db.update(beds).set({ status: "available" }).where(eq(beds.id, bedId));
             console.error("Failed to create booking:", bookingError);
             return c.json(err("Failed to create booking. Please try again."), 500);
         }
 
         if (!booking) {
-            await db.update(beds).set({ status: "available" }).where(eq(beds.id, bedId));
             return c.json(err("Failed to create booking"), 500);
+        }
+
+        // CRITICAL: Re-check bed availability before creating payment order
+        // This prevents a race condition where another user booked the bed
+        // between our initial check and now
+        const bedRecheck = await db.select().from(beds).where(eq(beds.id, bedId)).get();
+        if (!bedRecheck || bedRecheck.status !== "available") {
+            // Bed was taken by another user - cancel this booking
+            await db.delete(bookings).where(eq(bookings.id, booking.id));
+            return c.json(err("This bed was just booked by someone else. Please try another bed."), 409);
         }
 
         // Fetch official deposit amount from global settings
@@ -147,9 +150,8 @@ bookingsRoute.post(
                 }
             );
         } catch (razorpayError) {
-            // Rollback: delete booking and release bed
+            // Rollback: delete booking (no bed reservation to release)
             await db.delete(bookings).where(eq(bookings.id, booking.id));
-            await db.update(beds).set({ status: "available" }).where(eq(beds.id, bedId));
             console.error("Razorpay order creation failed:", razorpayError);
             return c.json(err("Payment gateway error. Please try again."), 500);
         }
@@ -165,9 +167,8 @@ bookingsRoute.post(
                 createdAt: now,
             });
         } catch (dbError) {
-            // Rollback: delete booking and release bed
+            // Rollback: delete booking (no bed reservation to release)
             await db.delete(bookings).where(eq(bookings.id, booking.id));
-            await db.update(beds).set({ status: "available" }).where(eq(beds.id, bedId));
             console.error("Database error during deposit creation:", dbError);
             return c.json(err("Failed to finalize booking. Please try again."), 500);
         }
@@ -228,32 +229,67 @@ bookingsRoute.post(
             return c.json(err("Deposit has already been verified"), 409);
         }
 
-        const now = nowISO();
-
-        // Mark deposit as paid
-        await db
-            .update(deposits)
-            .set({ razorpayPaymentId, paidAt: now })
-            .where(eq(deposits.id, deposit.id));
-
-        // Transition booking from pending_deposit → active and mark bed as occupied
+        // Get the booking to check bed availability
+        // Bed might have been booked by someone else while payment was pending
         const booking = await db
             .select()
             .from(bookings)
             .where(eq(bookings.id, deposit.bookingId))
             .get();
 
-        if (booking) {
+        if (!booking) {
+            return c.json(err("Booking not found"), 404);
+        }
+
+        // Check if bed is still available (race condition protection)
+        const bed = await db
+            .select()
+            .from(beds)
+            .where(eq(beds.id, booking.bedId))
+            .get();
+
+        if (!bed) {
+            return c.json(err("Bed not found"), 404);
+        }
+
+        if (bed.status !== "available") {
+            // Bed was taken by someone else - cancel this booking
             await db
                 .update(bookings)
-                .set({ status: "deposit_paid" })
+                .set({ status: "cancelled" })
                 .where(eq(bookings.id, booking.id));
-
-            await db
-                .update(beds)
-                .set({ status: "reserved" })
-                .where(eq(beds.id, booking.bedId));
+            return c.json(err("This bed is no longer available. Your booking has been cancelled. Please try booking another bed."), 409);
         }
+
+        const now = nowISO();
+
+        // Atomically reserve the bed (only if still available)
+        const reserveResult = await db
+            .update(beds)
+            .set({ status: "reserved" })
+            .where(and(eq(beds.id, booking.bedId), eq(beds.status, "available")))
+            .returning({ id: beds.id });
+
+        if (reserveResult.length === 0) {
+            // Bed was taken between our check and update
+            await db
+                .update(bookings)
+                .set({ status: "cancelled" })
+                .where(eq(bookings.id, booking.id));
+            return c.json(err("This bed was just booked by someone else. Please try another bed."), 409);
+        }
+
+        // Bed successfully reserved - now mark deposit as paid
+        await db
+            .update(deposits)
+            .set({ razorpayPaymentId, paidAt: now })
+            .where(eq(deposits.id, deposit.id));
+
+        // Transition booking from pending_deposit → deposit_paid
+        await db
+            .update(bookings)
+            .set({ status: "deposit_paid" })
+            .where(eq(bookings.id, booking.id));
 
         return c.json(ok({ message: "Deposit verified. Booking confirmed!" }));
     }
@@ -362,11 +398,16 @@ bookingsRoute.put(
             .from(bookings)
             .where(and(
                 eq(bookings.tenantId, tenantId),
-                inArray(bookings.status, ["active", "pending_deposit", "deposit_paid"])
+                inArray(bookings.status, ["active", "pending_deposit", "deposit_paid", "cancelled"])
             ))
             .get();
 
         if (!booking) return c.json(err("Booking not found"), 404);
+
+        // Don't allow modifying cancelled bookings
+        if (booking.status === "cancelled") {
+            return c.json(err("This booking has been cancelled"), 409);
+        }
 
         const bed = await db.select().from(beds).where(eq(beds.id, booking.bedId)).get();
         if (bed?.status === "occupied") {
@@ -379,6 +420,39 @@ bookingsRoute.put(
             .where(eq(bookings.id, booking.id));
 
         return c.json(ok({ message: "Move-in date updated successfully" }));
+    }
+);
+
+// ─── POST /api/bookings/my/cancel — TENANT ───────────────────
+// Cancel a pending deposit booking (allows user to book a different bed)
+bookingsRoute.post(
+    "/my/cancel",
+    requireAuth(),
+    async (c) => {
+        const { sub: tenantId } = c.get("user");
+        const db = createDb(c.env.DB);
+
+        // Find pending_deposit booking
+        const booking = await db
+            .select()
+            .from(bookings)
+            .where(and(
+                eq(bookings.tenantId, tenantId),
+                eq(bookings.status, "pending_deposit")
+            ))
+            .get();
+
+        if (!booking) {
+            return c.json(err("No pending booking to cancel"), 404);
+        }
+
+        // Cancel the booking (bed was never reserved, so no need to update beds table)
+        await db
+            .update(bookings)
+            .set({ status: "cancelled" })
+            .where(eq(bookings.id, booking.id));
+
+        return c.json(ok({ message: "Booking cancelled. You can now book a different bed." }));
     }
 );
 

@@ -6,6 +6,7 @@ import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { Modal } from "@/components/Modal";
 import toast from "react-hot-toast";
 import { MessageSquare, AlertCircle, Clock, CheckCircle2 } from "lucide-react";
+import { formatStatus } from "@/lib/formatStatus";
 
 interface Complaint {
   id: number;
@@ -102,7 +103,7 @@ export default function AdminComplaintsPage() {
                     </p>
                   </div>
                   <span className={`badge badge-sm ${c.status === "resolved" ? "badge-success" : c.status === "in_progress" ? "badge-info" : "badge-warning"}`}>
-                    {c.status.replace("_", " ")}
+                    {formatStatus(c.status)}
                   </span>
                 </div>
                 {c.adminReply && (

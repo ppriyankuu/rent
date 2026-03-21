@@ -427,21 +427,26 @@ adminRoute.delete("/tenants/:id", adminDeleteRateLimit(), async (c) => {
     }
 
     // Delete in order to respect foreign key constraints:
-    // 1. Delete complaints
+    // 1. Delete deposit deductions (must be deleted before deposits)
+    for (const booking of tenantBookings) {
+        await db.delete(depositDeductions).where(eq(depositDeductions.bookingId, booking.id));
+    }
+
+    // 2. Delete complaints
     await db.delete(complaints).where(eq(complaints.tenantId, tenantId));
 
-    // 2. Delete payments
+    // 3. Delete payments
     await db.delete(payments).where(eq(payments.tenantId, tenantId));
 
-    // 3. Delete deposits for each booking
+    // 4. Delete deposits for each booking
     for (const booking of tenantBookings) {
         await db.delete(deposits).where(eq(deposits.bookingId, booking.id));
     }
 
-    // 4. Delete bookings
+    // 5. Delete bookings
     await db.delete(bookings).where(eq(bookings.tenantId, tenantId));
 
-    // 5. Finally, delete the user
+    // 6. Finally, delete the user
     await db.delete(users).where(eq(users.id, tenantId));
 
     return c.json(ok({ message: "Tenant and all associated data permanently deleted, beds freed" }));

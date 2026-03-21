@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Navbar } from "@/components/Navbar";
+import { useAuth } from "@/context/AuthContext";
 import {
   LayoutDashboard,
   CreditCard,
@@ -25,6 +26,10 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const { user } = useAuth();
+
+  // Check if profile has missing values (name or phone)
+  const hasMissingProfile = !user?.name?.trim() || !user?.phone?.trim();
 
   return (
     <ProtectedRoute requiredRole="tenant">
@@ -52,29 +57,41 @@ export default function DashboardLayout({
                 </div>
 
                 <ul className="menu p-4 gap-1">
-                  {sidebarLinks.map((link) => (
-                    <li key={link.href}>
-                      <Link
-                        href={link.href}
-                        className={
-                          pathname === link.href ? "active font-medium bg-base-200" : ""
-                        }
-                        onClick={() => {
-                          const drawer = document.getElementById("dashboard-drawer") as HTMLInputElement;
-                          if (drawer) drawer.checked = false;
-                        }}
-                      >
-                        <link.icon className="h-4 w-4" />
-                        {link.label}
-                      </Link>
-                    </li>
-                  ))}
+                  {sidebarLinks.map((link) => {
+                    const isProfileLink = link.href === "/dashboard/profile";
+                    const isProfileMissing = isProfileLink && hasMissingProfile;
+                    const isCurrentPage = pathname === link.href;
+
+                    return (
+                      <li key={link.href}>
+                        <Link
+                          href={link.href}
+                          className={`flex items-center justify-between ${isCurrentPage ? "active font-medium bg-base-200" : ""
+                            } ${isProfileMissing ? "text-error" : ""}`}
+                          onClick={() => {
+                            const drawer = document.getElementById("dashboard-drawer") as HTMLInputElement;
+                            if (drawer) drawer.checked = false;
+                          }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <link.icon className="h-4 w-4" />
+                            {link.label}
+                          </div>
+                          {isProfileMissing && (
+                            <span className="indicator-item badge badge-error badge-xs">
+                              Fix
+                            </span>
+                          )}
+                        </Link>
+                      </li>
+                    );
+                  })}
                 </ul>
               </aside>
             </div>
           </div>
         </div>
       </div>
-    </ProtectedRoute>
+    </ProtectedRoute >
   );
 }

@@ -19,6 +19,7 @@ import {
   Trash2,
   Plus,
 } from "lucide-react";
+import { formatStatus } from "@/lib/formatStatus";
 
 interface TenantDetail {
   tenant: {
@@ -340,7 +341,7 @@ export default function TenantDetailPage() {
               <div>
                 <p className="text-base-content/60">Status</p>
                 <span className={`badge badge-sm ${booking.status === "active" ? "badge-success" : booking.status === "ended" ? "badge-error" : "badge-warning"}`}>
-                  {booking.status}
+                  {formatStatus(booking.status)}
                 </span>
               </div>
               <div>
@@ -412,7 +413,7 @@ export default function TenantDetailPage() {
                 </div>
                 <div>
                   <p className="text-base-content/60">Status</p>
-                  <span className="badge badge-sm badge-outline">{deposit.status}</span>
+                  <span className="badge badge-sm badge-outline">{formatStatus(deposit.status)}</span>
                 </div>
                 <div>
                   <p className="text-base-content/60">Paid</p>
@@ -506,7 +507,7 @@ export default function TenantDetailPage() {
                         <td><span className="badge badge-outline badge-xs">{p.type}</span></td>
                         <td>
                           <span className={`badge badge-xs ${p.status === "completed" ? "badge-success" : p.status === "pending" ? "badge-warning" : "badge-error"}`}>
-                            {p.status}
+                            {formatStatus(p.status)}
                           </span>
                         </td>
                         <td className="text-xs">
@@ -537,7 +538,7 @@ export default function TenantDetailPage() {
                   <div key={c.id} className="flex justify-between items-center p-2 bg-base-200/50 rounded">
                     <span className="text-sm">{c.subject}</span>
                     <span className={`badge badge-xs ${c.status === "resolved" ? "badge-success" : c.status === "in_progress" ? "badge-info" : "badge-warning"}`}>
-                      {c.status}
+                      {formatStatus(c.status)}
                     </span>
                   </div>
                 ))}
