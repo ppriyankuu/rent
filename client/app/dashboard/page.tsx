@@ -20,6 +20,7 @@ import {
   Edit2,
   CheckCircle2,
   DollarSign,
+  LogOut,
 } from "lucide-react";
 import { DashboardSkeleton } from "@/components/Skeleton";
 import { formatStatus } from "@/lib/formatStatus";
@@ -36,6 +37,7 @@ interface BookingData {
     status: string;
     monthlyRent: number;
     moveInDate: string;
+    expectedMoveOutDate: string | null;
     nextRentDueDate: string;
   };
   bed: {
@@ -91,7 +93,9 @@ export default function DashboardPage() {
   const [noBooking, setNoBooking] = useState(false);
   const [payingRent, setPayingRent] = useState(false);
   const [moveInDateModalOpen, setMoveInDateModalOpen] = useState(false);
+  const [moveOutDateModalOpen, setMoveOutDateModalOpen] = useState(false);
   const [newMoveInDate, setNewMoveInDate] = useState("");
+  const [newMoveOutDate, setNewMoveOutDate] = useState("");
   const [updatingDate, setUpdatingDate] = useState(false);
   const [retryingDeposit, setRetryingDeposit] = useState(false);
   const [deductions, setDeductions] = useState<Deduction[]>([]);
@@ -152,6 +156,22 @@ export default function DashboardPage() {
       fetchBooking();
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, "Failed to update move-in date"));
+    } finally {
+      setUpdatingDate(false);
+    }
+  };
+
+  const handleUpdateMoveOutDate = async (e: React.SubmitEvent) => {
+    e.preventDefault();
+    if (!newMoveOutDate) return;
+    setUpdatingDate(true);
+    try {
+      await api.put("/api/bookings/my/expected-move-out-date", { expectedMoveOutDate: newMoveOutDate });
+      toast.success("Expected move-out date updated successfully!");
+      setMoveOutDateModalOpen(false);
+      fetchBooking();
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, "Failed to update move-out date"));
     } finally {
       setUpdatingDate(false);
     }
@@ -284,11 +304,6 @@ export default function DashboardPage() {
           icon={IndianRupee}
         />
         <StatCard
-          label="Your Bed"
-          value={bed.name}
-          icon={Bed}
-        />
-        <StatCard
           label="Move-in Date"
           value={
             <div className="flex items-center gap-2">
@@ -308,6 +323,47 @@ export default function DashboardPage() {
             </div>
           }
           icon={CalendarDays}
+        />
+        <StatCard
+          label="Expected Move-Out Date"
+          value={
+            <div className="flex items-center gap-2">
+              <span>
+                {booking.expectedMoveOutDate
+                  ? new Date(booking.expectedMoveOutDate).toLocaleDateString("en-IN")
+                  : "Not set"}
+              </span>
+              {bed.status === "occupied" && (
+                <button
+                  className="btn btn-ghost btn-xs btn-square"
+                  onClick={() => {
+                    setNewMoveOutDate(booking.expectedMoveOutDate || new Date().toISOString().split("T")[0]);
+                    setMoveOutDateModalOpen(true);
+                  }}
+                  title="Edit Expected Move-Out Date"
+                >
+                  <Edit2 className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          }
+          icon={LogOut}
+          description={
+            !booking.expectedMoveOutDate
+              ? "Please set your move-out date"
+              : new Date(booking.expectedMoveOutDate) < new Date()
+                ? "Past due!"
+                : new Date(booking.expectedMoveOutDate).toDateString() === new Date().toDateString()
+                  ? "Today!"
+                  : ""
+          }
+          className={
+            !booking.expectedMoveOutDate
+              ? "border-warning border-2"
+              : new Date(booking.expectedMoveOutDate) <= new Date()
+                ? "border-error border-2"
+                : ""
+          }
         />
         <StatCard
           label="Deposit"
@@ -430,7 +486,7 @@ export default function DashboardPage() {
           <div className="card-body flex flex-row items-center gap-4 py-4">
             <CheckCircle2 className="h-6 w-6 text-success shrink-0" />
             <div>
-              <h3 className="font-bold text-success">Rent Paid for This Month</h3>
+              <h3 className="font-bold text-success">Rent Paid for this Month</h3>
               <p className="text-sm text-base-content/60">
                 Your rent payment has been received. View your receipt in the{" "}
                 <Link href="/dashboard/payments" className="link link-primary">payment history</Link>.
@@ -515,6 +571,29 @@ export default function DashboardPage() {
               className="input input-bordered w-full"
               value={newMoveInDate}
               onChange={(e) => setNewMoveInDate(e.target.value)}
+              min={new Date().toISOString().split("T")[0]}
+              required
+            />
+          </div>
+          <button type="submit" className={`btn btn-primary w-full ${updatingDate ? "btn-disabled" : ""}`} disabled={updatingDate}>
+            {updatingDate ? <span className="loading loading-spinner loading-sm"></span> : "Update Date"}
+          </button>
+        </form>
+      </Modal>
+
+      {/* Edit Expected Move-Out Date Modal */}
+      <Modal open={moveOutDateModalOpen} onClose={() => setMoveOutDateModalOpen(false)} title="Update Expected Move-Out Date">
+        <form onSubmit={handleUpdateMoveOutDate} className="space-y-4">
+          <div className="p-3 bg-base-200 rounded text-sm text-base-content/70">
+            This helps others know when your bed might become available. You can update this date anytime.
+          </div>
+          <div className="form-control">
+            <label className="label"><span className="label-text">Expected Move-Out Date</span></label>
+            <input
+              type="date"
+              className="input input-bordered w-full"
+              value={newMoveOutDate}
+              onChange={(e) => setNewMoveOutDate(e.target.value)}
               min={new Date().toISOString().split("T")[0]}
               required
             />

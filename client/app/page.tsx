@@ -8,7 +8,7 @@ import { getErrorMessage } from "@/lib/errors";
 import api from "@/lib/api";
 import toast from "react-hot-toast";
 import Link from "next/link";
-import { Bed, CheckCircle2, XCircle, Clock, Home } from "lucide-react";
+import { Bed, CheckCircle2, XCircle, Clock, Home, Info, Bug, GitPullRequest } from "lucide-react";
 import { openRazorpayCheckout } from "@/lib/razorpay";
 import { RoomGridSkeleton } from "@/components/Skeleton";
 import { Modal } from "@/components/Modal";
@@ -18,6 +18,7 @@ interface BedData {
   name: string;
   status: "available" | "reserved" | "occupied";
   monthlyRent: number;
+  expectedMoveOutDate: string | null;
 }
 
 interface RoomData {
@@ -41,7 +42,7 @@ export default function HomePage() {
   useEffect(() => {
     Promise.all([
       api.get("/api/rooms").catch(() => null),
-      api.get("/api/admin/settings").catch(() => null)
+      api.get("/api/admin/settings", { skipAuthRedirect: true }).catch(() => null)
     ]).then(([roomsRes, settingsRes]) => {
       if (roomsRes?.data?.data) setRooms(roomsRes.data.data);
       if (settingsRes?.data?.data?.deposit_amount) {
@@ -52,7 +53,7 @@ export default function HomePage() {
 
   const handleBookClick = (bed: BedData) => {
     if (!isAuthenticated) {
-      toast("Please login or sign up first", { icon: "🔒" });
+      toast("You need to login/signup first!", { icon: "🧠" });
       return;
     }
     if (user?.role === "admin") {
@@ -73,7 +74,7 @@ export default function HomePage() {
   const handleConfirmBooking = async (e: React.SubmitEvent) => {
     e.preventDefault();
     if (!selectedBed || !moveInDate) return;
-    
+
     setModalOpen(false);
     setBookingBedId(selectedBed.id);
     try {
@@ -120,13 +121,13 @@ export default function HomePage() {
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         <section className="text-center py-12 lg:py-20">
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-6">
-            <Home className="h-4 w-4" /> Find Your Perfect Space
+            <Home className="h-4 w-4" /> Choose Your Place To Survive
           </div>
           <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight">
-            Comfortable Co-Living, <span className="text-primary">Made Simple</span>
+            Find Your Space, <span className="text-primary">Skip the Drama</span>
           </h1>
           <p className="mt-6 max-w-2xl mx-auto text-lg text-base-content/60">
-            Browse available rooms, book your bed online, and manage your rent payments — all in one place.
+            Browse rooms, book a bed, and avoid awkward landlord conversations.
           </p>
           {!isAuthenticated && (
             <div className="mt-8 flex justify-center gap-4">
@@ -165,6 +166,17 @@ export default function HomePage() {
                               {getStatusBadge(bed.status)}
                               <span className="text-xs text-base-content/50">₹{bed.monthlyRent.toLocaleString()}/mo</span>
                             </div>
+                            {bed.status === "occupied" && bed.expectedMoveOutDate && (
+                              <div className="text-xs text-base-content/70 mt-1 flex items-center gap-1">
+                                <Info className="h-3 w-3" />
+                                Expected release: {new Date(bed.expectedMoveOutDate).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}
+                              </div>
+                            )}
+                            {bed.status === "occupied" && !bed.expectedMoveOutDate && (
+                              <div className="text-xs text-base-content/50 mt-1">
+                                No move-out date set
+                              </div>
+                            )}
                           </div>
                           {bed.status === "available" && (
                             <button
@@ -184,14 +196,50 @@ export default function HomePage() {
             </div>
           )}
         </section>
+
+        <section className="py-10 sm:py-12 border-t border-base-200">
+          <div className="p-5 bg-base-200/50 rounded-xl text-sm sm:text-base text-base-content/80 max-w-2xl mx-auto">
+
+            <p className="text-base-content font-medium mb-3">A few simple things to keep in mind:</p>
+
+            <ul className="list-disc list-outside ml-5 space-y-1 text-base-content/70 text-justify leading-tight">
+              <li>Please help keep the rooms and facilities clean — future you (and everyone else) will appreciate it.</li>
+              <li>The bathroom is shared, so please leave it the way you’d like to find it.</li>
+              <li>If something stops working, just raise a complaint from your dashboard — we’ll handle the rest.</li>
+              <li>Noise happens, we get it. Just try to keep it low, especially at night.</li>
+              <li>Dustbins are provided — let’s use them and keep the place tidy.</li>
+            </ul>
+
+          </div>
+        </section>
       </main>
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Select Move-In Date">
         <form onSubmit={handleConfirmBooking} className="space-y-4">
-          <div className="p-3 bg-base-200 rounded text-sm text-base-content/70">
-            You are booking <strong>{selectedBed?.name}</strong>. 
-            A fixed security deposit of <strong>₹{globalDeposit !== null ? globalDeposit.toLocaleString() : selectedBed?.monthlyRent.toLocaleString()}</strong> is required to reserve this bed.
-            Your first month's rent will be prorated automatically based on your actual move-in date.
+          <div className="p-4 sm:p-5 bg-base-200 rounded-xl text-sm sm:text-base text-base-content/80 leading-relaxed space-y-3 max-w-2xl mx-auto">
+            <p className="text-base-content">
+              You’re booking <strong>{selectedBed?.name}</strong>.
+            </p>
+
+            <p>
+              To confirm your booking, you’ll need to pay a security deposit of{" "}
+              <strong className="text-base-content">
+                ₹
+                {globalDeposit !== null
+                  ? globalDeposit.toLocaleString()
+                  : selectedBed?.monthlyRent.toLocaleString()}
+              </strong>.
+            </p>
+
+            <p className="bg-base-100 p-3 rounded-lg">
+              This amount will be returned when you move out — it’s yours.
+              <br />
+              Deductions are only made in case of any damage or if there’s any trouble during your stay.
+            </p>
+
+            <p>
+              Your first month’s rent will be adjusted based on your move-in date.
+            </p>
           </div>
           <div className="form-control">
             <label className="label"><span className="label-text">Move-In Date</span></label>
@@ -209,6 +257,58 @@ export default function HomePage() {
           </button>
         </form>
       </Modal>
+
+      <footer className="mt-auto border-t border-base-200">
+        <div className="max-w-2xl mx-auto px-6 py-10 text-sm text-base-content/70 text-center">
+
+          <div className="space-y-3 leading-relaxed">
+
+            <p>
+              This site is maintained by{" "}
+              <Link
+                href="https://github.com/ppriyankuu"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-primary"
+              >
+                Priyanku Gogoi
+              </Link>{" "}
+              himself. (Mostly because he's lonely AF).
+            </p>
+
+            <p>
+              Found a bug? You may report it in the{" "}
+              <Link
+                href="https://github.com/ppriyankuu/rent/issues"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-4"
+              >
+                issues section
+              </Link>{" "}
+              of this app's repository.
+            </p>
+
+            <p>
+              If you're a developer yourself or are into computer science, feel free to contribute — Pull Requests are always welcome (just don't start judging my code).{" "}
+              <Link
+                href="https://github.com/ppriyankuu/rent"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-4"
+              >
+                Click me!
+              </Link>
+            </p>
+
+          </div>
+
+          <div className="mt-8 pt-6 border-t border-base-200 text-xs opacity-40">
+            © {new Date().getFullYear()} — Built with Next.js and questionable amounts of sugar.
+          </div>
+
+        </div>
+      </footer>
     </div>
   );
 }

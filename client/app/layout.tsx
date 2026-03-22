@@ -7,8 +7,8 @@ import { AuthProvider } from "@/context/AuthContext";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "RentEase — PG & Room Rental Management",
-  description: "Manage your PG rooms, bookings, and rent payments online.",
+  title: "PG's PG",
+  description: "Manage your rooms, bookings, and rent payments online.",
 };
 
 export default function RootLayout({

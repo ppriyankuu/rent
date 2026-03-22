@@ -7,7 +7,7 @@
 
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, and } from "drizzle-orm";
 import type { Env } from "../types/env";
 import type { JwtPayload } from "../types/api";
 import { ok, err } from "../types/api";
@@ -32,6 +32,22 @@ roomsRoute.get("/", async (c) => {
     // Get all beds
     const allBeds = await db.select().from(beds).all();
 
+    // Get all active bookings to find expected move-out dates
+    const allBookings = await db
+        .select({
+            bedId: bookings.bedId,
+            expectedMoveOutDate: bookings.expectedMoveOutDate,
+        })
+        .from(bookings)
+        .where(inArray(bookings.status, ["active", "deposit_paid"]))
+        .all();
+
+    // Create a map of bedId to expectedMoveOutDate
+    const bedMoveOutMap = new Map<number, string | null>();
+    for (const booking of allBookings) {
+        bedMoveOutMap.set(booking.bedId, booking.expectedMoveOutDate);
+    }
+
     // Group beds under their rooms
     const result = allRooms.map((room) => ({
         ...room,
@@ -42,7 +58,7 @@ roomsRoute.get("/", async (c) => {
                 name: bed.name,
                 status: bed.status,
                 monthlyRent: bed.monthlyRent,
-                // Only expose status publicly — don't leak internal IDs unnecessarily
+                expectedMoveOutDate: bedMoveOutMap.get(bed.id) || null,
             })),
     }));
 
@@ -61,7 +77,29 @@ roomsRoute.get("/:id", async (c) => {
 
     const roomBeds = await db.select().from(beds).where(eq(beds.roomId, roomId)).all();
 
-    return c.json(ok({ ...room, beds: roomBeds }));
+    // Get expected move-out dates for these beds
+    const bedIds = roomBeds.map(b => b.id);
+    const bookings = await db
+        .select({
+            bedId: bookings.bedId,
+            expectedMoveOutDate: bookings.expectedMoveOutDate,
+        })
+        .from(bookings)
+        .where(and(eq(bookings.bedId, bedIds[0]), inArray(bookings.bedId, bedIds)))
+        .all();
+
+    const bedMoveOutMap = new Map<number, string | null>();
+    for (const booking of bookings) {
+        bedMoveOutMap.set(booking.bedId, booking.expectedMoveOutDate);
+    }
+
+    return c.json(ok({
+        ...room,
+        beds: roomBeds.map(bed => ({
+            ...bed,
+            expectedMoveOutDate: bedMoveOutMap.get(bed.id) || null,
+        }))
+    }));
 });
 
 // ─── POST /api/rooms — ADMIN ONLY ─────────────────────────────
@@ -149,7 +187,7 @@ roomsRoute.delete("/:id", requireAdmin(), async (c) => {
         // Check if there are any bookings for these beds
         const existingBookings = await db.select().from(bookings).where(inArray(bookings.bedId, bedIds)).get();
         if (existingBookings) {
-             return c.json(err("Cannot delete room: one or more beds have booking history. Deleting would break payment records."), 409);
+            return c.json(err("Cannot delete room: one or more beds have booking history. Deleting would break payment records."), 409);
         }
     }
 
@@ -241,7 +279,7 @@ roomsRoute.delete("/:id/beds/:bedId", requireAdmin(), async (c) => {
 
     const existingBookings = await db.select().from(bookings).where(eq(bookings.bedId, bedId)).get();
     if (existingBookings) {
-         return c.json(err("Cannot delete bed: it has booking history. Deleting would break payment records."), 409);
+        return c.json(err("Cannot delete bed: it has booking history. Deleting would break payment records."), 409);
     }
 
     await db.delete(beds).where(eq(beds.id, bedId));

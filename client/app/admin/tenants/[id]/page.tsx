@@ -36,6 +36,7 @@ interface TenantDetail {
     monthlyRent: number;
     moveInDate: string;
     moveOutDate: string | null;
+    expectedMoveOutDate: string | null;
     nextRentDueDate: string;
   } | null;
   bed: {
@@ -356,6 +357,14 @@ export default function TenantDetailPage() {
                 <p className="text-base-content/60">Move-in</p>
                 <p className="font-medium">
                   {new Date(booking.moveInDate).toLocaleDateString("en-IN")}
+                </p>
+              </div>
+              <div>
+                <p className="text-base-content/60">Expected Move-Out</p>
+                <p className="font-medium">
+                  {booking.expectedMoveOutDate
+                    ? new Date(booking.expectedMoveOutDate).toLocaleDateString("en-IN")
+                    : "Not set"}
                 </p>
               </div>
               <div>

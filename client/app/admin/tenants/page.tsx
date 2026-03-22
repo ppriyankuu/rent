@@ -21,6 +21,7 @@ interface Tenant {
   bookingStatus: string | null;
   monthlyRent: number | null;
   moveInDate: string | null;
+  expectedMoveOutDate: string | null;
   nextRentDueDate: string | null;
   bedName: string | null;
   roomName: string | null;
@@ -131,7 +132,7 @@ export default function AdminTenantsPage() {
     if (!confirmModal.tenantId || !confirmModal.type) return;
     const tenantId = confirmModal.tenantId;
     const actionType = confirmModal.type;
-    
+
     setConfirmModal({ isOpen: false, type: null, tenantId: null });
 
     if (actionType === "reactivate") {
@@ -212,6 +213,7 @@ export default function AdminTenantsPage() {
                 <th>Phone</th>
                 <th>Room / Bed</th>
                 <th>Rent</th>
+                <th>Expected Move-Out</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -230,6 +232,11 @@ export default function AdminTenantsPage() {
                   <td className="text-sm">
                     {t.monthlyRent
                       ? `₹${t.monthlyRent.toLocaleString()}`
+                      : "—"}
+                  </td>
+                  <td className="text-sm">
+                    {t.expectedMoveOutDate
+                      ? new Date(t.expectedMoveOutDate).toLocaleDateString("en-IN")
                       : "—"}
                   </td>
                   <td>
@@ -373,8 +380,8 @@ export default function AdminTenantsPage() {
             {confirmModal.type === "reactivate"
               ? "Are you sure you want to reactivate this tenant?"
               : confirmModal.type === "deactivate"
-              ? "Are you sure you want to deactivate this tenant? Their booking will be ended and bed made available."
-              : "Are you sure you want to permanently delete this tenant and all their records? This cannot be undone."}
+                ? "Are you sure you want to deactivate this tenant? Their booking will be ended and bed made available."
+                : "Are you sure you want to permanently delete this tenant and all their records? This cannot be undone."}
           </p>
           <div className="flex gap-3 justify-end mt-6">
             <button

@@ -161,12 +161,14 @@ export function requireAuth(): MiddlewareHandler<{ Bindings: Env; Variables: { u
  * Apply to all admin-only routes.
  */
 export function requireAdmin(): MiddlewareHandler<{ Bindings: Env; Variables: { user: JwtPayload } }> {
-    const authMiddleware = requireAuth();
     return async (c: Context, next: Next) => {
         // First, run the standard auth check
-        let authPassed = false;
-        await authMiddleware(c, async () => { authPassed = true; });
-        if (!authPassed) return; // requireAuth already sent the error response
+        const authResponse = await requireAuth()(c, async () => { });
+
+        // If auth middleware returned a response (e.g., 401), return it
+        if (authResponse) {
+            return authResponse;
+        }
 
         // Then check admin role
         const user = c.get("user") as JwtPayload;

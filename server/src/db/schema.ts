@@ -78,7 +78,8 @@ export const bookings = sqliteTable("bookings", {
     }).notNull().default("pending_deposit"),
     monthlyRent: real("monthly_rent").notNull(),          // snapshot of rent at booking time
     moveInDate: text("move_in_date").notNull(),
-    moveOutDate: text("move_out_date"),                   // null until tenant leaves
+    moveOutDate: text("move_out_date"),                   // null until tenant leaves (actual move-out)
+    expectedMoveOutDate: text("expected_move_out_date"),  // tenant-set expected move-out date
     nextRentDueDate: text("next_rent_due_date").notNull(),
     createdAt: text("created_at").notNull(),
 }, (table) => ([

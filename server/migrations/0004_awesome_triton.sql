@@ -1,0 +1,1 @@
+ALTER TABLE `bookings` ADD `expected_move_out_date` text;

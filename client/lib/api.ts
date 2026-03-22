@@ -1,5 +1,12 @@
 import axios from "axios";
 
+// Extend axios config to include skipAuthRedirect option
+declare module "axios" {
+  interface AxiosRequestConfig {
+    skipAuthRedirect?: boolean;
+  }
+}
+
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8787",
   headers: { "Content-Type": "application/json" },
@@ -23,7 +30,9 @@ api.interceptors.response.use(
     if (
       error.response?.status === 401 &&
       typeof window !== "undefined" &&
-      !window.location.pathname.startsWith("/login")
+      !window.location.pathname.startsWith("/login") &&
+      // Don't redirect for optional API calls (e.g., public pages fetching settings)
+      !error.config?.skipAuthRedirect
     ) {
       localStorage.removeItem("token");
       localStorage.removeItem("user");

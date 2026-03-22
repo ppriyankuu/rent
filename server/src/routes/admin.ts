@@ -110,6 +110,7 @@ adminRoute.get("/tenants", zValidator("query", paginationSchema), async (c) => {
             bookingStatus: bookings.status,
             monthlyRent: bookings.monthlyRent,
             moveInDate: bookings.moveInDate,
+            expectedMoveOutDate: bookings.expectedMoveOutDate,
             nextRentDueDate: bookings.nextRentDueDate,
             bedName: beds.name,
             roomName: rooms.name,
@@ -171,6 +172,7 @@ adminRoute.get("/tenants/:id", async (c) => {
             monthlyRent: bookings.monthlyRent,
             moveInDate: bookings.moveInDate,
             moveOutDate: bookings.moveOutDate,
+            expectedMoveOutDate: bookings.expectedMoveOutDate,
             nextRentDueDate: bookings.nextRentDueDate,
             bookingCreatedAt: bookings.createdAt,
             // Bed fields
@@ -234,6 +236,7 @@ adminRoute.get("/tenants/:id", async (c) => {
         monthlyRent: tenantWithBooking.monthlyRent,
         moveInDate: tenantWithBooking.moveInDate,
         moveOutDate: tenantWithBooking.moveOutDate,
+        expectedMoveOutDate: tenantWithBooking.expectedMoveOutDate,
         nextRentDueDate: tenantWithBooking.nextRentDueDate,
         createdAt: tenantWithBooking.bookingCreatedAt,
     } : null;

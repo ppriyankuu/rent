@@ -91,7 +91,7 @@ export default function ProfilePage() {
                   {missingName && (
                     <label className="label">
                       <span className="label-text-alt text-error font-medium">
-                        ⚠️ Please fill this field
+                        Please fill this field!
                       </span>
                     </label>
                   )}

@@ -368,7 +368,10 @@ bookingsRoute.get("/my", requireAuth(), async (c) => {
     const settings = await getAllSettings(db);
 
     return c.json(ok({
-        booking,
+        booking: {
+            ...booking,
+            expectedMoveOutDate: booking.expectedMoveOutDate,
+        },
         bed,
         room,
         deposit,
@@ -420,6 +423,43 @@ bookingsRoute.put(
             .where(eq(bookings.id, booking.id));
 
         return c.json(ok({ message: "Move-in date updated successfully" }));
+    }
+);
+
+// ─── PUT /api/bookings/my/expected-move-out-date — TENANT ────
+// Tenant can set/update their expected move-out date (for bed availability planning)
+// This is informational only - no automatic actions are taken on this date
+bookingsRoute.put(
+    "/my/expected-move-out-date",
+    requireAuth(),
+    zValidator("json", z.object({ expectedMoveOutDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) })),
+    async (c) => {
+        const { sub: tenantId } = c.get("user");
+        const { expectedMoveOutDate } = c.req.valid("json");
+        const db = createDb(c.env.DB);
+
+        const booking = await db
+            .select()
+            .from(bookings)
+            .where(and(
+                eq(bookings.tenantId, tenantId),
+                inArray(bookings.status, ["active", "deposit_paid"])
+            ))
+            .get();
+
+        if (!booking) return c.json(err("Booking not found"), 404);
+
+        // Don't allow setting move-out date before move-in date
+        if (expectedMoveOutDate < booking.moveInDate) {
+            return c.json(err("Expected move-out date cannot be before move-in date"), 400);
+        }
+
+        await db
+            .update(bookings)
+            .set({ expectedMoveOutDate })
+            .where(eq(bookings.id, booking.id));
+
+        return c.json(ok({ message: "Expected move-out date updated successfully" }));
     }
 );
 
