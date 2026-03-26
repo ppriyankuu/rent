@@ -29,6 +29,8 @@ interface TenantOption {
   id: number;
   name: string;
   email: string;
+  roomName?: string | null;
+  bedName?: string | null;
 }
 
 export default function AdminPaymentsPage() {
@@ -37,9 +39,13 @@ export default function AdminPaymentsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [tenants, setTenants] = useState<TenantOption[]>([]);
+  const [selectedTenantId, setSelectedTenantId] = useState<string>("");
   const [form, setForm] = useState({ tenantId: "", amount: "", rentMonth: "", notes: "" });
 
-  useEffect(() => { fetchPayments(); }, []);
+  useEffect(() => {
+    fetchPayments();
+    fetchTenants();
+  }, []);
 
   const fetchPayments = async () => {
     try {
@@ -52,11 +58,21 @@ export default function AdminPaymentsPage() {
   const fetchTenants = async () => {
     try {
       const res = await api.get("/api/admin/tenants");
-      setTenants((res.data?.data?.data || []).map((t: TenantOption) => ({ id: t.id, name: t.name, email: t.email })));
+      setTenants((res.data?.data?.data || []).map((t: TenantOption) => ({
+        id: t.id,
+        name: t.name,
+        email: t.email,
+        roomName: t.roomName,
+        bedName: t.bedName,
+      })));
     } catch { /* ignore */ }
   };
 
   const openModal = () => { fetchTenants(); setModalOpen(true); };
+
+  const filteredPayments = selectedTenantId
+    ? payments.filter((p) => p.tenantId === Number(selectedTenantId))
+    : payments;
 
   const handleManualPayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,52 +146,78 @@ export default function AdminPaymentsPage() {
           <p className="text-base-content/60">No payments recorded yet.</p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="table table-zebra">
-            <thead>
-              <tr>
-                <th>Payment ID</th>
-                <th>Tenant Name</th>
-                <th>Room & Bed</th>
-                <th>Month</th>
-                <th>Amount</th>
-                <th>Late Fee</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Paid On</th>
-              </tr>
-            </thead>
-            <tbody>
-              {payments.map((p) => (
-                <tr key={p.id}>
-                  <td>#{p.id}</td>
-                  <td>
-                    <div className="font-medium">{p.tenantName || `Tenant #${p.tenantId}`}</div>
-                  </td>
-                  <td>
-                    {p.roomName && p.bedName ? (
-                      <div className="text-sm">
-                        {p.roomName} - {p.bedName}
-                      </div>
-                    ) : (
-                      <span className="text-base-content/50 text-sm">N/A</span>
-                    )}
-                  </td>
-                  <td className="font-medium">{p.rentMonth}</td>
-                  <td>₹{p.amount.toLocaleString()}</td>
-                  <td>{p.lateFee > 0 ? <span className="text-error">₹{p.lateFee}</span> : "—"}</td>
-                  <td><span className="badge badge-outline badge-sm">{p.type}</span></td>
-                  <td>
-                    <span className={`badge badge-sm ${p.status === "completed" ? "badge-success" : p.status === "pending" ? "badge-warning" : "badge-error"}`}>
-                      {formatStatus(p.status)}
-                    </span>
-                  </td>
-                  <td className="text-sm">{p.paidAt ? new Date(p.paidAt).toLocaleDateString("en-IN") : "—"}</td>
-                </tr>
+        <>
+          <div className="mb-4 flex gap-2 flex-wrap">
+            <label className="label px-0">
+              <span className="label-text font-medium">Filter by Tenant</span>
+            </label>
+            <select
+              className="select w-full max-w-xs"
+              value={selectedTenantId}
+              onChange={(e) => setSelectedTenantId(e.target.value)}
+            >
+              <option value="">All Tenants</option>
+              {tenants.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} {t.roomName && t.bedName ? `(${t.roomName} - ${t.bedName})` : `(${t.email})`}
+                </option>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </select>
+          </div>
+          {filteredPayments.length === 0 ? (
+            <div className="text-center py-16">
+              <CreditCard className="h-12 w-12 mx-auto text-base-content/30 mb-4" />
+              <p className="text-base-content/60">No payments found for the selected tenant.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="table table-zebra">
+                <thead>
+                  <tr>
+                    <th>Payment ID</th>
+                    <th>Tenant Name</th>
+                    <th>Room & Bed</th>
+                    <th>Month</th>
+                    <th>Amount</th>
+                    <th>Late Fee</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Paid On</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredPayments.map((p) => (
+                    <tr key={p.id}>
+                      <td>#{p.id}</td>
+                      <td>
+                        <div className="font-medium">{p.tenantName || `Tenant #${p.tenantId}`}</div>
+                      </td>
+                      <td>
+                        {p.roomName && p.bedName ? (
+                          <div className="text-sm">
+                            {p.roomName} - {p.bedName}
+                          </div>
+                        ) : (
+                          <span className="text-base-content/50 text-sm">N/A</span>
+                        )}
+                      </td>
+                      <td className="font-medium">{p.rentMonth}</td>
+                      <td>₹{p.amount.toLocaleString()}</td>
+                      <td>{p.lateFee > 0 ? <span className="text-error">₹{p.lateFee}</span> : "—"}</td>
+                      <td><span className="badge badge-outline badge-sm">{p.type}</span></td>
+                      <td>
+                        <span className={`badge badge-sm ${p.status === "completed" ? "badge-success" : p.status === "pending" ? "badge-warning" : "badge-error"}`}>
+                          {formatStatus(p.status)}
+                        </span>
+                      </td>
+                      <td className="text-sm">{p.paidAt ? new Date(p.paidAt).toLocaleDateString("en-IN") : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Record Manual Payment">
