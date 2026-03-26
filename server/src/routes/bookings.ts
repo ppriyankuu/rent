@@ -646,4 +646,60 @@ bookingsRoute.get("/my/deposit-balance", requireAuth(), async (c) => {
     return c.json(ok(balance));
 });
 
+// ─── GET /api/bookings/my/deposit/receipt — TENANT ───────────────
+// Returns structured data for deposit receipt generation
+bookingsRoute.get("/my/deposit/receipt", requireAuth(), async (c) => {
+    const { sub: tenantId } = c.get("user");
+    const db = createDb(c.env.DB);
+
+    // Get tenant's active booking
+    const booking = await db
+        .select()
+        .from(bookings)
+        .where(and(
+            eq(bookings.tenantId, tenantId),
+            or(eq(bookings.status, "active"), eq(bookings.status, "deposit_paid"))
+        ))
+        .get();
+
+    if (!booking) return c.json(err("No active booking found"), 404);
+
+    // Get deposit record
+    const deposit = await db
+        .select()
+        .from(deposits)
+        .where(and(eq(deposits.bookingId, booking.id), eq(deposits.tenantId, tenantId)))
+        .get();
+
+    if (!deposit || !deposit.paidAt) {
+        return c.json(err("Deposit not paid yet"), 404);
+    }
+
+    // Get tenant info
+    const tenant = await db
+        .select({ id: users.id, name: users.name, email: users.email, phone: users.phone })
+        .from(users)
+        .where(eq(users.id, tenantId))
+        .get();
+
+    // Get bed and room info
+    const bed = await db.select().from(beds).where(eq(beds.id, booking.bedId)).get();
+    const room = bed ? await db.select().from(rooms).where(eq(rooms.id, bed.roomId)).get() : null;
+
+    // Return structured receipt data
+    return c.json(
+        ok({
+            receiptNumber: `DEP-${deposit.id.toString().padStart(6, "0")}`,
+            tenant,
+            room: room?.name ?? "N/A",
+            bed: bed?.name ?? "N/A",
+            depositAmount: deposit.amount,
+            paymentType: deposit.razorpayPaymentId ? "online" : "offline",
+            paidAt: deposit.paidAt,
+            razorpayPaymentId: deposit.razorpayPaymentId,
+            razorpayOrderId: deposit.razorpayOrderId,
+        })
+    );
+});
+
 export default bookingsRoute;

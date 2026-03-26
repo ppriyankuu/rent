@@ -21,6 +21,8 @@ import {
   CheckCircle2,
   DollarSign,
   LogOut,
+  Receipt,
+  Download,
 } from "lucide-react";
 import { DashboardSkeleton } from "@/components/Skeleton";
 import { formatStatus } from "@/lib/formatStatus";
@@ -87,6 +89,18 @@ interface DepositBalance {
   remainingBalance: number;
 }
 
+interface DepositReceipt {
+  receiptNumber: string;
+  tenant: { name: string; email: string; phone: string };
+  room: string;
+  bed: string;
+  depositAmount: number;
+  paymentType: string;
+  paidAt: string;
+  razorpayPaymentId: string | null;
+  razorpayOrderId: string | null;
+}
+
 export default function DashboardPage() {
   const [bookingData, setBookingData] = useState<BookingData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -100,6 +114,8 @@ export default function DashboardPage() {
   const [retryingDeposit, setRetryingDeposit] = useState(false);
   const [deductions, setDeductions] = useState<Deduction[]>([]);
   const [depositBalance, setDepositBalance] = useState<DepositBalance | null>(null);
+  const [depositReceipt, setDepositReceipt] = useState<DepositReceipt | null>(null);
+  const [depositReceiptOpen, setDepositReceiptOpen] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -142,6 +158,16 @@ export default function DashboardPage() {
       setDepositBalance(res.data.data);
     } catch {
       // Ignore errors - balance is optional
+    }
+  };
+
+  const viewDepositReceipt = async () => {
+    try {
+      const res = await api.get("/api/bookings/my/deposit/receipt");
+      setDepositReceipt(res.data.data);
+      setDepositReceiptOpen(true);
+    } catch {
+      toast.error("Failed to load deposit receipt");
     }
   };
 
@@ -367,7 +393,20 @@ export default function DashboardPage() {
         />
         <StatCard
           label="Deposit"
-          value={deposit ? `₹${deposit.amount.toLocaleString()}` : "N/A"}
+          value={
+            <div className="flex items-center gap-2">
+              <span>{deposit ? `₹${deposit.amount.toLocaleString()}` : "N/A"}</span>
+              {deposit && deposit.paidAt && (
+                <button
+                  className="btn btn-ghost btn-xs btn-square"
+                  onClick={viewDepositReceipt}
+                  title="View Receipt"
+                >
+                  <Receipt className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          }
           icon={Shield}
           description={deposit?.status ? formatStatus(deposit.status) : ""}
         />
@@ -603,6 +642,88 @@ export default function DashboardPage() {
           </button>
         </form>
       </Modal>
+
+      {/* Deposit Receipt Modal */}
+      <Modal
+        open={depositReceiptOpen}
+        onClose={() => setDepositReceiptOpen(false)}
+        title="Deposit Receipt"
+      >
+        {depositReceipt && (
+          <div className="space-y-4 text-sm max-w-lg w-full overflow-hidden">
+
+            {/* Header */}
+            <div className="text-center border-b border-base-200 pb-3">
+              <p className="font-bold text-lg">{depositReceipt.receiptNumber}</p>
+              <p className="text-base-content/60">Security Deposit Receipt</p>
+            </div>
+
+            {/* Info Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+              <Field label="Tenant" value={depositReceipt.tenant.name} />
+              <Field label="Email" value={depositReceipt.tenant.email} />
+              <Field label="Room" value={depositReceipt.room} />
+              <Field label="Bed" value={depositReceipt.bed} />
+              <Field label="Payment Type" value={depositReceipt.paymentType} capitalize />
+
+            </div>
+
+            {/* Amount Section */}
+            <div className="space-y-1">
+              <div className="flex justify-between font-bold text-base border-t border-base-200 pt-1">
+                <span>Deposit Amount</span>
+                <span>₹{depositReceipt.depositAmount.toLocaleString()}</span>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="text-center text-xs text-base-content/50 mt-2 wrap-break-word">
+              Paid on {new Date(depositReceipt.paidAt).toLocaleString("en-IN")}
+              {depositReceipt.razorpayPaymentId && (
+                <> • Razorpay ID: {depositReceipt.razorpayPaymentId}</>
+              )}
+            </div>
+
+            {/* Action */}
+            <button
+              className="btn btn-outline btn-sm w-full mt-2"
+              onClick={() => window.print()}
+            >
+              <Download className="h-3 w-3" /> Print Receipt
+            </button>
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  value,
+  capitalize = false,
+}: {
+  label: string;
+  value: string;
+  capitalize?: boolean;
+}) {
+  const length = value?.length || 0;
+
+  // Dynamic text sizing based on length
+  let sizeClass = "text-sm";
+  if (length > 25) sizeClass = "text-xs";
+  if (length > 40) sizeClass = "text-[11px]";
+
+  return (
+    <div className="min-w-0">
+      <p className="text-base-content/60">{label}</p>
+      <p
+        className={`font-medium ${sizeClass} wrap-break-word ${capitalize ? "capitalize" : ""
+          }`}
+      >
+        {value}
+      </p>
     </div>
   );
 }
