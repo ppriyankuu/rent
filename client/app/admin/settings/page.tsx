@@ -6,15 +6,9 @@ import { LoadingSpinner } from "@/components/LoadingSpinner";
 import toast from "react-hot-toast";
 import { Settings, Save } from "lucide-react";
 
-interface SettingsData {
-  rent_due_start_day?: string;
-  rent_due_end_day?: string;
-  late_fee_amount?: string;
-  deposit_amount?: string;
-}
+
 
 export default function AdminSettingsPage() {
-  const [settings, setSettings] = useState<SettingsData>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -38,7 +32,6 @@ export default function AdminSettingsPage() {
     api.get("/api/admin/settings")
       .then((res) => {
         const s = res.data?.data || {};
-        setSettings(s);
         const parsed = {
           rent_due_start_day: parseInt(s.rent_due_start_day) || 1,
           rent_due_end_day: parseInt(s.rent_due_end_day) || 5,

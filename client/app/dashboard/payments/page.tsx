@@ -1,41 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
+import { CreditCard, Receipt, Download } from "lucide-react";
 import api from "@/lib/api";
+import { PageHeader } from "@/components/common/PageHeader";
+import { EmptyState } from "@/components/common/EmptyState";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { Modal } from "@/components/Modal";
+import { Field } from "@/components/common/Field";
+import { StatusBadge } from "@/components/common/StatusBadge";
+import { formatDate } from "@/lib/utils/date";
 import toast from "react-hot-toast";
-import { CreditCard, Receipt, Download } from "lucide-react";
-
-interface Payment {
-  id: number;
-  amount: number;
-  type: string;
-  status: string;
-  rentMonth: string;
-  lateFee: number;
-  paidAt: string | null;
-  createdAt: string;
-}
-
-interface ReceiptData {
-  receiptNumber: string;
-  tenant: { name: string; email: string; phone: string };
-  room: string;
-  bed: string;
-  rentMonth: string;
-  rentAmount: number;
-  lateFee: number;
-  totalAmount: number;
-  paymentType: string;
-  paidAt: string;
-  razorpayPaymentId: string | null;
-}
+import type { Payment, PaymentReceipt } from "@/lib/types";
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [receipt, setReceipt] = useState<ReceiptData | null>(null);
+  const [receipt, setReceipt] = useState<PaymentReceipt | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
 
   useEffect(() => {
@@ -75,34 +56,17 @@ export default function PaymentsPage() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "completed":
-        return <span className="badge badge-success badge-sm">Completed</span>;
-      case "pending":
-        return <span className="badge badge-warning badge-sm">Pending</span>;
-      case "failed":
-        return <span className="badge badge-error badge-sm">Failed</span>;
-      default:
-        return <span className="badge badge-ghost badge-sm">{status}</span>;
-    }
-  };
-
   if (loading) return <LoadingSpinner text="Loading payments..." />;
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <CreditCard className="h-6 w-6" /> Payment History
-        </h1>
-      </div>
+      <PageHeader title="Payment History" icon={CreditCard} />
 
       {payments.length === 0 ? (
-        <div className="text-center py-16">
-          <CreditCard className="h-12 w-12 mx-auto text-base-content/30 mb-4" />
-          <p className="text-base-content/60">No payments yet.</p>
-        </div>
+        <EmptyState
+          icon={CreditCard}
+          title="No payments yet"
+        />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-base-200">
           <table className="table table-zebra">
@@ -130,15 +94,13 @@ export default function PaymentsPage() {
                     )}
                   </td>
                   <td>
-                    <span className="badge badge-outline badge-sm">
-                      {p.type}
-                    </span>
+                    <span className="badge badge-outline badge-sm">{p.type}</span>
                   </td>
-                  <td>{getStatusBadge(p.status)}</td>
+                  <td>
+                    <StatusBadge status={p.status} />
+                  </td>
                   <td className="text-sm">
-                    {p.paidAt
-                      ? new Date(p.paidAt).toLocaleDateString("en-IN")
-                      : "—"}
+                    {p.paidAt ? formatDate(p.paidAt) : "—"}
                   </td>
                   <td>
                     {p.status === "completed" && (
@@ -158,7 +120,6 @@ export default function PaymentsPage() {
         </div>
       )}
 
-      {/* Receipt Modal */}
       <Modal
         open={receiptOpen}
         onClose={() => setReceiptOpen(false)}
@@ -166,32 +127,26 @@ export default function PaymentsPage() {
       >
         {receipt && (
           <div className="space-y-4 text-sm max-w-lg w-full overflow-hidden">
-
-            {/* Header */}
             <div className="text-center border-b border-base-200 pb-3">
               <p className="font-bold text-lg">{receipt.receiptNumber}</p>
               <p className="text-base-content/60">Rent Payment Receipt</p>
             </div>
 
-            {/* Info Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-
               <Field label="Tenant" value={receipt.tenant.name} />
               <Field label="Email" value={receipt.tenant.email} />
               <Field label="Room" value={receipt.room} />
               <Field label="Bed" value={receipt.bed} />
-              <Field label="Rent Month" value={receipt.rentMonth} />
+              <Field label="Rent Month" value={receipt.rentMonth || ""} />
               <Field label="Payment Type" value={receipt.paymentType} capitalize />
-
             </div>
 
             <div className="divider my-1"></div>
 
-            {/* Amount Section */}
             <div className="space-y-1">
               <div className="flex justify-between">
                 <span>Rent Amount</span>
-                <span>₹{receipt.rentAmount.toLocaleString()}</span>
+                <span>₹{(receipt.rentAmount || 0).toLocaleString()}</span>
               </div>
 
               {receipt.lateFee > 0 && (
@@ -207,7 +162,6 @@ export default function PaymentsPage() {
               </div>
             </div>
 
-            {/* Footer */}
             <div className="text-center text-xs text-base-content/50 mt-2 wrap-break-word">
               Paid on {new Date(receipt.paidAt).toLocaleString("en-IN")}
               {receipt.razorpayPaymentId && (
@@ -215,7 +169,6 @@ export default function PaymentsPage() {
               )}
             </div>
 
-            {/* Action */}
             <button
               className="btn btn-outline btn-sm w-full mt-2"
               onClick={() => window.print()}
@@ -225,35 +178,6 @@ export default function PaymentsPage() {
           </div>
         )}
       </Modal>
-    </div>
-  );
-}
-
-function Field({
-  label,
-  value,
-  capitalize = false,
-}: {
-  label: string;
-  value: string;
-  capitalize?: boolean;
-}) {
-  const length = value?.length || 0;
-
-  // Dynamic text sizing based on length
-  let sizeClass = "text-sm";
-  if (length > 25) sizeClass = "text-xs";
-  if (length > 40) sizeClass = "text-[11px]";
-
-  return (
-    <div className="min-w-0">
-      <p className="text-base-content/60">{label}</p>
-      <p
-        className={`font-medium ${sizeClass} wrap-break-word ${capitalize ? "capitalize" : ""
-          }`}
-      >
-        {value}
-      </p>
     </div>
   );
 }

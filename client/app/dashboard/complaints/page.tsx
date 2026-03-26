@@ -1,46 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import api from "@/lib/api";
-import { getErrorMessage } from "@/lib/errors";
+import { useState } from "react";
+import { MessageSquare, Plus, Clock, CheckCircle2, AlertCircle } from "lucide-react";
+import { useComplaints } from "@/hooks/useComplaints";
+import { PageHeader } from "@/components/common/PageHeader";
+import { EmptyState } from "@/components/common/EmptyState";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { Modal } from "@/components/Modal";
-import toast from "react-hot-toast";
-import { MessageSquare, Plus, Clock, CheckCircle2, AlertCircle } from "lucide-react";
-import { formatStatus } from "@/lib/formatStatus";
-
-interface Complaint {
-  id: number;
-  subject: string;
-  message: string;
-  status: string;
-  adminReply: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
+import { StatusBadge } from "@/components/common/StatusBadge";
+import { formatDate } from "@/lib/utils/date";
 
 export default function ComplaintsPage() {
-  const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { complaints, loading, submitComplaint } = useComplaints();
   const [modalOpen, setModalOpen] = useState(false);
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    fetchComplaints();
-  }, []);
-
-  const fetchComplaints = async () => {
-    try {
-      const res = await api.get("/api/complaints/my");
-      setComplaints(res.data?.data || []);
-    } catch {
-      toast.error("Failed to load complaints");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSubmit = async (e: React.SubmitEvent) => {
     e.preventDefault();
@@ -48,34 +23,22 @@ export default function ComplaintsPage() {
     const trimmedSubject = subject.trim();
     const trimmedMessage = message.trim();
 
-    // Client-side validation
     if (trimmedSubject.length < 3) {
-      toast.error("Subject must be at least 3 characters");
       return;
     }
 
     if (trimmedMessage.length < 10) {
-      toast.error("Message must be at least 10 characters");
       return;
     }
 
     setSubmitting(true);
-    try {
-      await api.post("/api/complaints", {
-        subject: trimmedSubject,
-        message: trimmedMessage,
-      });
-
-      toast.success("Complaint submitted");
+    const success = await submitComplaint(trimmedSubject, trimmedMessage);
+    if (success) {
       setSubject("");
       setMessage("");
       setModalOpen(false);
-      fetchComplaints();
-    } catch (err: unknown) {
-      toast.error(getErrorMessage(err, "Failed to submit complaint"));
-    } finally {
-      setSubmitting(false);
     }
+    setSubmitting(false);
   };
 
   const getStatusIcon = (status: string) => {
@@ -95,20 +58,21 @@ export default function ComplaintsPage() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <MessageSquare className="h-6 w-6" /> My Complaints
-        </h1>
-        <button className="btn btn-primary btn-sm" onClick={() => setModalOpen(true)}>
-          <Plus className="h-4 w-4" /> New Complaint
-        </button>
-      </div>
+      <PageHeader
+        title="My Complaints"
+        icon={MessageSquare}
+        actions={
+          <button className="btn btn-primary btn-sm" onClick={() => setModalOpen(true)}>
+            <Plus className="h-4 w-4" /> New Complaint
+          </button>
+        }
+      />
 
       {complaints.length === 0 ? (
-        <div className="text-center py-16">
-          <MessageSquare className="h-12 w-12 mx-auto text-base-content/30 mb-4" />
-          <p className="text-base-content/60">No complaints submitted yet.</p>
-        </div>
+        <EmptyState
+          icon={MessageSquare}
+          title="No complaints submitted yet"
+        />
       ) : (
         <div className="space-y-4">
           {complaints.map((c) => (
@@ -122,20 +86,9 @@ export default function ComplaintsPage() {
                     <h3 className="font-bold flex items-center gap-2">
                       {getStatusIcon(c.status)} {c.subject}
                     </h3>
-                    <p className="text-sm text-base-content/60 mt-1">
-                      {c.message}
-                    </p>
+                    <p className="text-sm text-base-content/60 mt-1">{c.message}</p>
                   </div>
-                  <span
-                    className={`badge badge-sm ${c.status === "resolved"
-                      ? "badge-success"
-                      : c.status === "in_progress"
-                        ? "badge-info"
-                        : "badge-warning"
-                      }`}
-                  >
-                    {formatStatus(c.status)}
-                  </span>
+                  <StatusBadge status={c.status} />
                 </div>
                 {c.adminReply && (
                   <div className="mt-3 p-3 bg-base-200 rounded-lg">
@@ -146,8 +99,7 @@ export default function ComplaintsPage() {
                   </div>
                 )}
                 <p className="text-xs text-base-content/40 mt-2">
-                  Submitted{" "}
-                  {new Date(c.createdAt).toLocaleDateString("en-IN")}
+                  Submitted {formatDate(c.createdAt)}
                 </p>
               </div>
             </div>
@@ -155,7 +107,6 @@ export default function ComplaintsPage() {
         </div>
       )}
 
-      {/* New Complaint Modal */}
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}

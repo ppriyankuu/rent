@@ -1,37 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import api from "@/lib/api";
-import { getErrorMessage } from "@/lib/errors";
-import { LoadingSpinner } from "@/components/LoadingSpinner";
-import { Modal } from "@/components/Modal";
-import toast from "react-hot-toast";
+import { useState, useEffect } from "react";
 import { CreditCard, Plus, Download } from "lucide-react";
+import api from "@/lib/api";
+import { PageHeader } from "@/components/common/PageHeader";
+import { EmptyState } from "@/components/common/EmptyState";
 import { TableSkeleton } from "@/components/Skeleton";
-import { formatStatus } from "@/lib/formatStatus";
-
-interface Payment {
-  id: number;
-  tenantId: number;
-  tenantName?: string;
-  roomName?: string;
-  bedName?: string;
-  amount: number;
-  type: string;
-  status: string;
-  rentMonth: string;
-  lateFee: number;
-  paidAt: string | null;
-  createdAt: string;
-}
-
-interface TenantOption {
-  id: number;
-  name: string;
-  email: string;
-  roomName?: string | null;
-  bedName?: string | null;
-}
+import { Modal } from "@/components/Modal";
+import { StatusBadge } from "@/components/common/StatusBadge";
+import { formatDate } from "@/lib/utils/date";
+import toast from "react-hot-toast";
+import { getErrorMessage } from "@/lib/errors";
+import type { Payment, TenantOption } from "@/lib/types";
 
 export default function AdminPaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -51,8 +31,11 @@ export default function AdminPaymentsPage() {
     try {
       const res = await api.get("/api/payments");
       setPayments(res.data?.data?.data || []);
-    } catch { toast.error("Failed to load payments"); }
-    finally { setLoading(false); }
+    } catch {
+      toast.error("Failed to load payments");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const fetchTenants = async () => {
@@ -65,10 +48,10 @@ export default function AdminPaymentsPage() {
         roomName: t.roomName,
         bedName: t.bedName,
       })));
-    } catch { /* ignore */ }
+    } catch {
+      // ignore
+    }
   };
-
-  const openModal = () => { fetchTenants(); setModalOpen(true); };
 
   const filteredPayments = selectedTenantId
     ? payments.filter((p) => p.tenantId === Number(selectedTenantId))
@@ -90,7 +73,9 @@ export default function AdminPaymentsPage() {
       fetchPayments();
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, "Failed to record payment"));
-    } finally { setSubmitting(false); }
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleExport = async (type: "payments" | "tenants") => {
@@ -105,17 +90,15 @@ export default function AdminPaymentsPage() {
       link.remove();
       window.URL.revokeObjectURL(url);
       toast.success(`${type} CSV downloaded!`);
-    } catch { toast.error(`Failed to export ${type}`); }
+    } catch {
+      toast.error(`Failed to export ${type}`);
+    }
   };
 
   if (loading) {
     return (
       <div>
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <CreditCard className="h-6 w-6" /> Payments
-          </h1>
-        </div>
+        <PageHeader title="Payments" icon={CreditCard} />
         <TableSkeleton rows={5} />
       </div>
     );
@@ -123,28 +106,29 @@ export default function AdminPaymentsPage() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <CreditCard className="h-6 w-6" /> Payments
-        </h1>
-        <div className="flex gap-2 flex-wrap">
-          <button className="btn btn-outline btn-sm" onClick={() => handleExport("payments")}>
-            <Download className="h-4 w-4" /> Export Payments
-          </button>
-          <button className="btn btn-outline btn-sm" onClick={() => handleExport("tenants")}>
-            <Download className="h-4 w-4" /> Export Tenants
-          </button>
-          <button className="btn btn-primary btn-sm" onClick={openModal}>
-            <Plus className="h-4 w-4" /> Record Payment
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Payments"
+        icon={CreditCard}
+        actions={
+          <>
+            <button className="btn btn-outline btn-sm" onClick={() => handleExport("payments")}>
+              <Download className="h-4 w-4" /> Export Payments
+            </button>
+            <button className="btn btn-outline btn-sm" onClick={() => handleExport("tenants")}>
+              <Download className="h-4 w-4" /> Export Tenants
+            </button>
+            <button className="btn btn-primary btn-sm" onClick={() => setModalOpen(true)}>
+              <Plus className="h-4 w-4" /> Record Payment
+            </button>
+          </>
+        }
+      />
 
       {payments.length === 0 ? (
-        <div className="text-center py-16">
-          <CreditCard className="h-12 w-12 mx-auto text-base-content/30 mb-4" />
-          <p className="text-base-content/60">No payments recorded yet.</p>
-        </div>
+        <EmptyState
+          icon={CreditCard}
+          title="No payments recorded yet"
+        />
       ) : (
         <>
           <div className="mb-4 flex gap-2 flex-wrap">
@@ -165,10 +149,10 @@ export default function AdminPaymentsPage() {
             </select>
           </div>
           {filteredPayments.length === 0 ? (
-            <div className="text-center py-16">
-              <CreditCard className="h-12 w-12 mx-auto text-base-content/30 mb-4" />
-              <p className="text-base-content/60">No payments found for the selected tenant.</p>
-            </div>
+            <EmptyState
+              icon={CreditCard}
+              title="No payments found for the selected tenant"
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="table table-zebra">
@@ -204,13 +188,9 @@ export default function AdminPaymentsPage() {
                       <td className="font-medium">{p.rentMonth}</td>
                       <td>₹{p.amount.toLocaleString()}</td>
                       <td>{p.lateFee > 0 ? <span className="text-error">₹{p.lateFee}</span> : "—"}</td>
-                      <td><span className="badge badge-outline badge-sm">{p.type}</span></td>
-                      <td>
-                        <span className={`badge badge-sm ${p.status === "completed" ? "badge-success" : p.status === "pending" ? "badge-warning" : "badge-error"}`}>
-                          {formatStatus(p.status)}
-                        </span>
-                      </td>
-                      <td className="text-sm">{p.paidAt ? new Date(p.paidAt).toLocaleDateString("en-IN") : "—"}</td>
+                      <td><span className="badge badge-outline badge-xs">{p.type}</span></td>
+                      <td><StatusBadge status={p.status} /></td>
+                      <td className="text-sm">{p.paidAt ? formatDate(p.paidAt) : "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -224,24 +204,55 @@ export default function AdminPaymentsPage() {
         <form onSubmit={handleManualPayment} className="space-y-4">
           <div className="form-control">
             <label className="label"><span className="label-text">Tenant</span></label>
-            <select className="select select-bordered w-full" value={form.tenantId} onChange={(e) => setForm((f) => ({ ...f, tenantId: e.target.value }))} required>
+            <select
+              className="select select-bordered w-full"
+              value={form.tenantId}
+              onChange={(e) => setForm((f) => ({ ...f, tenantId: e.target.value }))}
+              required
+            >
               <option value="" disabled>Select tenant</option>
-              {tenants.map((t) => (<option key={t.id} value={t.id}>{t.name} ({t.email})</option>))}
+              {tenants.map((t) => (
+                <option key={t.id} value={t.id}>{t.name} ({t.email})</option>
+              ))}
             </select>
           </div>
           <div className="form-control">
             <label className="label"><span className="label-text">Amount (₹)</span></label>
-            <input type="text" inputMode="numeric" pattern="[0-9]*" className="input input-bordered w-full" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} required />
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              className="input input-bordered w-full"
+              value={form.amount}
+              onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+              required
+            />
           </div>
           <div className="form-control">
             <label className="label"><span className="label-text">Rent Month</span></label>
-            <input type="month" className="input input-bordered w-full" value={form.rentMonth} onChange={(e) => setForm((f) => ({ ...f, rentMonth: e.target.value }))} required />
+            <input
+              type="month"
+              className="input input-bordered w-full"
+              value={form.rentMonth}
+              onChange={(e) => setForm((f) => ({ ...f, rentMonth: e.target.value }))}
+              required
+            />
           </div>
           <div className="form-control">
             <label className="label"><span className="label-text">Notes</span></label>
-            <input type="text" className="input input-bordered w-full" placeholder="e.g., Paid by cash" value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
+            <input
+              type="text"
+              className="input input-bordered w-full"
+              placeholder="e.g., Paid by cash"
+              value={form.notes}
+              onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+            />
           </div>
-          <button type="submit" className={`btn btn-primary w-full ${submitting ? "btn-disabled" : ""}`} disabled={submitting}>
+          <button
+            type="submit"
+            className={`btn btn-primary w-full ${submitting ? "btn-disabled" : ""}`}
+            disabled={submitting}
+          >
             {submitting && <span className="loading loading-spinner loading-sm"></span>}
             Record Payment
           </button>

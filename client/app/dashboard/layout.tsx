@@ -10,7 +10,6 @@ import {
   CreditCard,
   MessageSquare,
   UserCircle,
-  Menu,
 } from "lucide-react";
 
 const sidebarLinks = [

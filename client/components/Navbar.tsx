@@ -41,7 +41,7 @@ export function Navbar({ hideMobileMenu = false, drawerId }: { hideMobileMenu?: 
           className={`btn btn-ghost text-xl font-bold ${pathname === "/" ? "hidden sm:flex" : ""
             }`}
         >
-          PG's PG
+          PG&apos;s PG
         </Link>
       </div>
 

@@ -1,44 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import api from "@/lib/api";
+import { useState } from "react";
+import { MessageSquare } from "lucide-react";
+import { useAdminComplaints } from "@/hooks/useComplaints";
+import { PageHeader } from "@/components/common/PageHeader";
+import { EmptyState } from "@/components/common/EmptyState";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { Modal } from "@/components/Modal";
-import toast from "react-hot-toast";
-import { MessageSquare, AlertCircle, Clock, CheckCircle2 } from "lucide-react";
-import { formatStatus } from "@/lib/formatStatus";
-
-interface Complaint {
-  id: number;
-  subject: string;
-  message: string;
-  status: string;
-  adminReply: string | null;
-  tenantId: number;
-  tenantName: string;
-  tenantEmail: string;
-  createdAt: string;
-  updatedAt: string;
-}
+import { StatusBadge } from "@/components/common/StatusBadge";
+import { formatDate } from "@/lib/utils/date";
+import type { Complaint } from "@/lib/types";
 
 export default function AdminComplaintsPage() {
-  const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { complaints, loading, updateComplaint } = useAdminComplaints();
   const [selected, setSelected] = useState<Complaint | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [replyStatus, setReplyStatus] = useState("open");
   const [replyText, setReplyText] = useState("");
   const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => { fetchComplaints(); }, []);
-
-  const fetchComplaints = async () => {
-    try {
-      const res = await api.get("/api/complaints");
-      setComplaints(res.data?.data?.data || []);
-    } catch { toast.error("Failed to load complaints"); }
-    finally { setLoading(false); }
-  };
 
   const openReply = (c: Complaint) => {
     setSelected(c);
@@ -51,24 +30,23 @@ export default function AdminComplaintsPage() {
     e.preventDefault();
     if (!selected) return;
     setSubmitting(true);
-    try {
-      await api.put(`/api/complaints/${selected.id}`, {
-        status: replyStatus,
-        adminReply: replyText,
-      });
-      toast.success("Complaint updated!");
+    const success = await updateComplaint(selected.id, replyStatus, replyText);
+    if (success) {
       setModalOpen(false);
-      fetchComplaints();
-    } catch { toast.error("Failed to update complaint"); }
-    finally { setSubmitting(false); }
+    }
+    setSubmitting(false);
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case "open": return <AlertCircle className="h-4 w-4 text-warning" />;
-      case "in_progress": return <Clock className="h-4 w-4 text-info" />;
-      case "resolved": return <CheckCircle2 className="h-4 w-4 text-success" />;
-      default: return null;
+      case "open":
+        return <AlertCircle className="h-4 w-4 text-warning" />;
+      case "in_progress":
+        return <Clock className="h-4 w-4 text-info" />;
+      case "resolved":
+        return <CheckCircle2 className="h-4 w-4 text-success" />;
+      default:
+        return null;
     }
   };
 
@@ -76,21 +54,21 @@ export default function AdminComplaintsPage() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <MessageSquare className="h-6 w-6" /> Complaints
-        </h1>
-      </div>
+      <PageHeader title="Complaints" icon={MessageSquare} />
 
       {complaints.length === 0 ? (
-        <div className="text-center py-16">
-          <MessageSquare className="h-12 w-12 mx-auto text-base-content/30 mb-4" />
-          <p className="text-base-content/60">No complaints yet.</p>
-        </div>
+        <EmptyState
+          icon={MessageSquare}
+          title="No complaints yet"
+        />
       ) : (
         <div className="space-y-3">
           {complaints.map((c) => (
-            <div key={c.id} className="card bg-base-100 shadow-sm border border-base-200 cursor-pointer hover:shadow-md transition-shadow" onClick={() => openReply(c)}>
+            <div
+              key={c.id}
+              className="card bg-base-100 shadow-sm border border-base-200 cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => openReply(c)}
+            >
               <div className="card-body p-4">
                 <div className="flex items-start justify-between">
                   <div>
@@ -99,12 +77,10 @@ export default function AdminComplaintsPage() {
                     </h3>
                     <p className="text-sm text-base-content/60 mt-1">{c.message}</p>
                     <p className="text-xs text-base-content/40 mt-2">
-                      By {c.tenantName} ({c.tenantEmail}) • {new Date(c.createdAt).toLocaleDateString("en-IN")}
+                      By {c.tenantName} ({c.tenantEmail}) • {formatDate(c.createdAt)}
                     </p>
                   </div>
-                  <span className={`badge badge-sm ${c.status === "resolved" ? "badge-success" : c.status === "in_progress" ? "badge-info" : "badge-warning"}`}>
-                    {formatStatus(c.status)}
-                  </span>
+                  <StatusBadge status={c.status} />
                 </div>
                 {c.adminReply && (
                   <div className="mt-2 p-2 bg-base-200 rounded text-sm">
@@ -127,7 +103,11 @@ export default function AdminComplaintsPage() {
             </div>
             <div className="form-control">
               <label className="label"><span className="label-text">Status</span></label>
-              <select className="select select-bordered w-full" value={replyStatus} onChange={(e) => setReplyStatus(e.target.value)}>
+              <select
+                className="select select-bordered w-full"
+                value={replyStatus}
+                onChange={(e) => setReplyStatus(e.target.value)}
+              >
                 <option value="open">Open</option>
                 <option value="in_progress">In Progress</option>
                 <option value="resolved">Resolved</option>
@@ -135,9 +115,19 @@ export default function AdminComplaintsPage() {
             </div>
             <div className="form-control">
               <label className="label"><span className="label-text">Admin Reply</span></label>
-              <textarea className="textarea textarea-bordered w-full" value={replyText} onChange={(e) => setReplyText(e.target.value)} rows={3} placeholder="Type your reply..." />
+              <textarea
+                className="textarea textarea-bordered w-full"
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                rows={3}
+                placeholder="Type your reply..."
+              />
             </div>
-            <button type="submit" className={`btn btn-primary w-full ${submitting ? "btn-disabled" : ""}`} disabled={submitting}>
+            <button
+              type="submit"
+              className={`btn btn-primary w-full ${submitting ? "btn-disabled" : ""}`}
+              disabled={submitting}
+            >
               {submitting && <span className="loading loading-spinner loading-sm"></span>}
               Update Complaint
             </button>
@@ -147,3 +137,6 @@ export default function AdminComplaintsPage() {
     </div>
   );
 }
+
+// Import icons
+import { AlertCircle, Clock, CheckCircle2 } from "lucide-react";

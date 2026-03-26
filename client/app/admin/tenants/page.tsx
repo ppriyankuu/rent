@@ -1,48 +1,40 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import api from "@/lib/api";
-import { getErrorMessage } from "@/lib/errors";
-import { LoadingSpinner } from "@/components/LoadingSpinner";
-import { Modal } from "@/components/Modal";
-import toast from "react-hot-toast";
+import { useState } from "react";
 import Link from "next/link";
 import { Users, Plus, Eye, UserMinus, Trash2, UserCheck } from "lucide-react";
+import { useTenants } from "@/hooks/useTenants";
+import { PageHeader } from "@/components/common/PageHeader";
+import { EmptyState } from "@/components/common/EmptyState";
+import { ConfirmModal } from "@/components/common/ConfirmModal";
 import { TableSkeleton } from "@/components/Skeleton";
+import { StatusBadge } from "@/components/common/StatusBadge";
+import { formatDate } from "@/lib/utils/date";
+import { fetchAvailableBeds } from "@/hooks/useRooms";
+import type { BedOption } from "@/lib/types";
 
-interface Tenant {
-  id: number;
+interface TenantForm {
   name: string;
   email: string;
+  password: string;
   phone: string;
-  isActive: boolean;
-  createdAt: string;
-  bookingId: number | null;
-  bookingStatus: string | null;
-  monthlyRent: number | null;
-  moveInDate: string | null;
-  expectedMoveOutDate: string | null;
-  nextRentDueDate: string | null;
-  bedName: string | null;
-  roomName: string | null;
-}
-
-interface BedOption {
-  id: number;
-  name: string;
-  roomName?: string;
-  monthlyRent: number;
+  bedId: string;
 }
 
 export default function AdminTenantsPage() {
-  const [tenants, setTenants] = useState<Tenant[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    tenants,
+    tenantsLoading,
+    createTenant,
+    deactivateTenant,
+    reactivateTenant,
+    deleteTenant,
+  } = useTenants();
+
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [availableBeds, setAvailableBeds] = useState<BedOption[]>([]);
-
-  // Form state
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<TenantForm>({
     name: "",
     email: "",
     password: "",
@@ -50,82 +42,43 @@ export default function AdminTenantsPage() {
     bedId: "",
   });
 
-  // Confirmation modal state
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
     type: "reactivate" | "deactivate" | "delete" | null;
     tenantId: number | null;
-  }>({
-    isOpen: false,
-    type: null,
-    tenantId: null,
-  });
+  }>({ isOpen: false, type: null, tenantId: null });
 
-  useEffect(() => {
-    fetchTenants();
-  }, []);
-
-  const fetchTenants = async () => {
-    try {
-      const res = await api.get("/api/admin/tenants");
-      setTenants(res.data?.data?.data || []);
-    } catch {
-      toast.error("Failed to load tenants");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchAvailableBeds = async () => {
-    try {
-      const res = await api.get("/api/rooms");
-      const rooms = res.data?.data || [];
-      const beds: BedOption[] = [];
-      for (const room of rooms) {
-        for (const bed of room.beds) {
-          if (bed.status === "available") {
-            beds.push({
-              id: bed.id,
-              name: bed.name,
-              roomName: room.name,
-              monthlyRent: bed.monthlyRent,
-            });
-          }
-        }
-      }
-      setAvailableBeds(beds);
-    } catch {
-      // Ignore
-    }
-  };
-
-  const openModal = () => {
-    fetchAvailableBeds();
+  const openModal = async () => {
+    const beds = await fetchAvailableBeds();
+    setAvailableBeds(beds);
     setModalOpen(true);
   };
 
   const handleCreate = async (e: React.SubmitEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    try {
-      const payload: Record<string, unknown> = {
-        name: form.name,
-        email: form.email,
-        password: form.password,
-        phone: form.phone,
-      };
-      if (form.bedId) payload.bedId = Number(form.bedId);
 
-      await api.post("/api/admin/tenants", payload);
-      toast.success("Tenant created!");
+    const payload: Record<string, unknown> = {
+      name: form.name,
+      email: form.email,
+      password: form.password,
+      phone: form.phone,
+    };
+    if (form.bedId) payload.bedId = Number(form.bedId);
+
+    const success = await createTenant(payload as unknown as {
+      name: string;
+      email: string;
+      password: string;
+      phone: string;
+      bedId?: number;
+    });
+
+    if (success) {
       setModalOpen(false);
       setForm({ name: "", email: "", password: "", phone: "", bedId: "" });
-      fetchTenants();
-    } catch (err: unknown) {
-      toast.error(getErrorMessage(err, "Failed to create tenant"));
-    } finally {
-      setSubmitting(false);
     }
+    setSubmitting(false);
   };
 
   const confirmAction = async () => {
@@ -135,53 +88,24 @@ export default function AdminTenantsPage() {
 
     setConfirmModal({ isOpen: false, type: null, tenantId: null });
 
+    let success = false;
     if (actionType === "reactivate") {
-      try {
-        await api.put(`/api/admin/tenants/${tenantId}/reactivate`);
-        toast.success("Tenant reactivated");
-        fetchTenants();
-      } catch {
-        toast.error("Failed to reactivate tenant");
-      }
+      success = await reactivateTenant(tenantId);
     } else if (actionType === "deactivate") {
-      try {
-        await api.put(`/api/admin/tenants/${tenantId}/deactivate`);
-        toast.success("Tenant deactivated");
-        fetchTenants();
-      } catch {
-        toast.error("Failed to deactivate tenant");
-      }
+      success = await deactivateTenant(tenantId);
     } else if (actionType === "delete") {
-      try {
-        await api.delete(`/api/admin/tenants/${tenantId}`);
-        toast.success("Tenant deleted entirely");
-        fetchTenants();
-      } catch (err: unknown) {
-        toast.error(getErrorMessage(err, "Failed to delete tenant"));
-      }
+      success = await deleteTenant(tenantId);
+    }
+
+    if (success && actionType === "delete") {
+      setForm({ name: "", email: "", password: "", phone: "", bedId: "" });
     }
   };
 
-  const handleReactivate = (tenantId: number) => {
-    setConfirmModal({ isOpen: true, type: "reactivate", tenantId });
-  };
-
-  const handleDeactivate = (tenantId: number) => {
-    setConfirmModal({ isOpen: true, type: "deactivate", tenantId });
-  };
-
-  const handleDelete = (tenantId: number) => {
-    setConfirmModal({ isOpen: true, type: "delete", tenantId });
-  };
-
-  if (loading) {
+  if (tenantsLoading) {
     return (
       <div>
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Users className="h-6 w-6" /> Tenants
-          </h1>
-        </div>
+        <PageHeader title="Tenants" icon={Users} />
         <TableSkeleton rows={5} />
       </div>
     );
@@ -189,20 +113,21 @@ export default function AdminTenantsPage() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Users className="h-6 w-6" /> Tenants
-        </h1>
-        <button className="btn btn-primary btn-sm" onClick={openModal}>
-          <Plus className="h-4 w-4" /> Add Tenant
-        </button>
-      </div>
+      <PageHeader
+        title="Tenants"
+        icon={Users}
+        actions={
+          <button className="btn btn-primary btn-sm" onClick={openModal}>
+            <Plus className="h-4 w-4" /> Add Tenant
+          </button>
+        }
+      />
 
       {tenants.length === 0 ? (
-        <div className="text-center py-16">
-          <Users className="h-12 w-12 mx-auto text-base-content/30 mb-4" />
-          <p className="text-base-content/60">No tenants yet.</p>
-        </div>
+        <EmptyState
+          icon={Users}
+          title="No tenants yet"
+        />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-base-200">
           <table className="table table-zebra">
@@ -236,17 +161,13 @@ export default function AdminTenantsPage() {
                   </td>
                   <td className="text-sm">
                     {t.expectedMoveOutDate
-                      ? new Date(t.expectedMoveOutDate).toLocaleDateString("en-IN")
+                      ? formatDate(t.expectedMoveOutDate)
                       : "—"}
                   </td>
                   <td>
-                    {!t.isActive ? (
-                      <span className="badge badge-error badge-sm">Inactive</span>
-                    ) : t.bookingStatus === "active" ? (
-                      <span className="badge badge-success badge-sm">Active</span>
-                    ) : (
-                      <span className="badge badge-ghost badge-sm">No booking</span>
-                    )}
+                    <StatusBadge
+                      status={!t.isActive ? "inactive" : t.bookingStatus === "active" ? "active" : "pending"}
+                    />
                   </td>
                   <td>
                     <div className="flex gap-1">
@@ -261,7 +182,7 @@ export default function AdminTenantsPage() {
                       {t.isActive && (
                         <button
                           className="btn btn-ghost btn-xs text-error"
-                          onClick={() => handleDeactivate(t.id)}
+                          onClick={() => setConfirmModal({ isOpen: true, type: "deactivate", tenantId: t.id })}
                           title="Deactivate Tenant"
                           aria-label="Deactivate tenant"
                         >
@@ -272,14 +193,14 @@ export default function AdminTenantsPage() {
                         <>
                           <button
                             className="btn btn-ghost btn-xs text-success"
-                            onClick={() => handleReactivate(t.id)}
+                            onClick={() => setConfirmModal({ isOpen: true, type: "reactivate", tenantId: t.id })}
                             title="Reactivate Tenant"
                           >
                             <UserCheck className="h-3 w-3" />
                           </button>
                           <button
                             className="btn btn-ghost btn-xs text-error"
-                            onClick={() => handleDelete(t.id)}
+                            onClick={() => setConfirmModal({ isOpen: true, type: "delete", tenantId: t.id })}
                             title="Delete Tenant"
                           >
                             <Trash2 className="h-3 w-3" />
@@ -296,11 +217,7 @@ export default function AdminTenantsPage() {
       )}
 
       {/* Add Tenant Modal */}
-      <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title="Add New Tenant"
-      >
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Add New Tenant">
         <form onSubmit={handleCreate} className="space-y-4">
           <div className="form-control">
             <label className="label"><span className="label-text">Name</span></label>
@@ -369,36 +286,37 @@ export default function AdminTenantsPage() {
         </form>
       </Modal>
 
-      {/* Confirmation Modal */}
-      <Modal
-        open={confirmModal.isOpen}
+      {/* Confirmation Modals */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
         onClose={() => setConfirmModal({ isOpen: false, type: null, tenantId: null })}
-        title={confirmModal.type === "delete" ? "Delete Tenant" : confirmModal.type === "reactivate" ? "Reactivate Tenant" : "Deactivate Tenant"}
-      >
-        <div className="space-y-4">
-          <p className="text-base-content/80">
-            {confirmModal.type === "reactivate"
-              ? "Are you sure you want to reactivate this tenant?"
-              : confirmModal.type === "deactivate"
-                ? "Are you sure you want to deactivate this tenant? Their booking will be ended and bed made available."
-                : "Are you sure you want to permanently delete this tenant and all their records? This cannot be undone."}
-          </p>
-          <div className="flex gap-3 justify-end mt-6">
-            <button
-              className="btn btn-ghost"
-              onClick={() => setConfirmModal({ isOpen: false, type: null, tenantId: null })}
-            >
-              Cancel
-            </button>
-            <button
-              className={`btn ${confirmModal.type === "delete" ? "btn-error" : confirmModal.type === "reactivate" ? "btn-success" : "btn-warning"}`}
-              onClick={confirmAction}
-            >
-              {confirmModal.type === "delete" ? "Yes, Delete" : confirmModal.type === "reactivate" ? "Yes, Reactivate" : "Yes, Deactivate"}
-            </button>
-          </div>
-        </div>
-      </Modal>
+        onConfirm={confirmAction}
+        title={
+          confirmModal.type === "delete"
+            ? "Delete Tenant"
+            : confirmModal.type === "reactivate"
+              ? "Reactivate Tenant"
+              : "Deactivate Tenant"
+        }
+        message={
+          confirmModal.type === "reactivate"
+            ? "Are you sure you want to reactivate this tenant?"
+            : confirmModal.type === "deactivate"
+              ? "Are you sure you want to deactivate this tenant? Their booking will be ended and bed made available."
+              : "Are you sure you want to permanently delete this tenant and all their records? This cannot be undone."
+        }
+        confirmText={
+          confirmModal.type === "delete"
+            ? "Yes, Delete"
+            : confirmModal.type === "reactivate"
+              ? "Yes, Reactivate"
+              : "Yes, Deactivate"
+        }
+        variant={confirmModal.type === "delete" ? "danger" : confirmModal.type === "reactivate" ? "success" : "warning"}
+      />
     </div>
   );
 }
+
+// Import Modal here to avoid circular dependency
+import { Modal } from "@/components/Modal";

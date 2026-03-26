@@ -62,48 +62,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // On mount: restore from localStorage and validate
   useEffect(() => {
-    const storedToken = localStorage.getItem("token");
-    const storedUser = localStorage.getItem("user");
+    const initAuth = async () => {
+      const storedToken = localStorage.getItem("token");
+      const storedUser = localStorage.getItem("user");
 
-    if (storedToken && storedUser) {
-      // Safely parse stored user data
-      let parsedUser: User | null = null;
-      try {
-        parsedUser = JSON.parse(storedUser);
-      } catch {
-        // Corrupted localStorage data - clear it
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        setLoading(false);
-        return;
-      }
+      if (storedToken && storedUser) {
+        let parsedUser: User | null = null;
+        try {
+          parsedUser = JSON.parse(storedUser);
+        } catch {
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          setLoading(false);
+          return;
+        }
 
-      setToken(storedToken);
-      setUser(parsedUser);
+        setToken(storedToken);
+        setUser(parsedUser);
 
-      // Validate token in background
-      api
-        .get("/api/auth/me", {
-          headers: { Authorization: `Bearer ${storedToken}` },
-        })
-        .then((res) => {
+        try {
+          const res = await api.get("/api/auth/me", {
+            headers: { Authorization: `Bearer ${storedToken}` },
+          });
           const userData = res.data?.data?.user;
           if (userData) {
             setUser(userData);
             localStorage.setItem("user", JSON.stringify(userData));
           }
-        })
-        .catch(() => {
-          // Token expired or invalid
+        } catch {
           setToken(null);
           setUser(null);
           localStorage.removeItem("token");
           localStorage.removeItem("user");
-        })
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setLoading(false);
+      }
+    };
+
+    initAuth();
   }, []);
 
   return (

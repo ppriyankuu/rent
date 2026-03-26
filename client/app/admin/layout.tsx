@@ -11,7 +11,6 @@ import {
   CreditCard,
   MessageSquare,
   Settings,
-  Menu,
 } from "lucide-react";
 
 const sidebarLinks = [
