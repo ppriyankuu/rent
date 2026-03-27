@@ -79,7 +79,7 @@ roomsRoute.get("/:id", async (c) => {
 
     // Get expected move-out dates for these beds
     const bedIds = roomBeds.map(b => b.id);
-    const bookings = await db
+    const bedBookings = await db
         .select({
             bedId: bookings.bedId,
             expectedMoveOutDate: bookings.expectedMoveOutDate,
@@ -89,7 +89,7 @@ roomsRoute.get("/:id", async (c) => {
         .all();
 
     const bedMoveOutMap = new Map<number, string | null>();
-    for (const booking of bookings) {
+    for (const booking of bedBookings) {
         bedMoveOutMap.set(booking.bedId, booking.expectedMoveOutDate);
     }
 
