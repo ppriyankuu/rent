@@ -1,15 +1,15 @@
 /**
- * Cloudflare D1 is accessed via `env.DB` (the binding defined in wrangler.toml).
+ * Cloudflare D1 is accessed via `env.rent` (the binding defined in wrangler.toml).
  * We wrap it with Drizzle ORM so we can write type-safe queries instead of raw SQL.
  *
  * WHY A FACTORY FUNCTION?
  * Cloudflare Workers don't have a persistent process — each request gets a fresh
  * execution context. So we create a new Drizzle instance per request by passing
- * `env.DB` into this function from the route handler.
+ * `env.rent` into this function from the route handler.
  *
  * Usage:
  *   import { createDb } from "../db/client";
- *   const db = createDb(env.DB);
+ *   const db = createDb(env.rent);
  *   const users = await db.select().from(usersTable);
  */
 

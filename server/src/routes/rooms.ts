@@ -24,7 +24,7 @@ const roomsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 // ─── GET /api/rooms — PUBLIC (no auth required) ───────────────
 // Anyone can see room/bed availability without logging in
 roomsRoute.get("/", async (c) => {
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
 
     // Get all rooms
     const allRooms = await db.select().from(rooms).all();
@@ -70,7 +70,7 @@ roomsRoute.get("/:id", async (c) => {
     const roomId = parseInt(c.req.param("id"), 10);
     if (isNaN(roomId)) return c.json(err("Invalid room ID"), 400);
 
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
 
     const room = await db.select().from(rooms).where(eq(rooms.id, roomId)).get();
     if (!room) return c.json(err("Room not found"), 404);
@@ -106,7 +106,7 @@ roomsRoute.get("/:id", async (c) => {
 // Create a new room with multiple beds in one request
 roomsRoute.post("/", requireAdmin(), zValidator("json", createRoomSchema), async (c) => {
     const body = c.req.valid("json");
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
 
     const now = nowISO();
 
@@ -144,7 +144,7 @@ roomsRoute.put(
         if (isNaN(roomId)) return c.json(err("Invalid room ID"), 400);
 
         const body = c.req.valid("json");
-        const db = createDb(c.env.DB);
+        const db = createDb(c.env.rent);
 
         const updated = await db
             .update(rooms)
@@ -165,7 +165,7 @@ roomsRoute.delete("/:id", requireAdmin(), async (c) => {
     const roomId = parseInt(c.req.param("id"), 10);
     if (isNaN(roomId)) return c.json(err("Invalid room ID"), 400);
 
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
 
     // Check if room exists
     const room = await db.select().from(rooms).where(eq(rooms.id, roomId)).get();
@@ -211,7 +211,7 @@ roomsRoute.post(
         if (isNaN(roomId)) return c.json(err("Invalid room ID"), 400);
 
         const body = c.req.valid("json");
-        const db = createDb(c.env.DB);
+        const db = createDb(c.env.rent);
 
         // Check if room exists
         const room = await db.select().from(rooms).where(eq(rooms.id, roomId)).get();
@@ -246,7 +246,7 @@ roomsRoute.put(
         if (isNaN(bedId)) return c.json(err("Invalid bed ID"), 400);
 
         const body = c.req.valid("json");
-        const db = createDb(c.env.DB);
+        const db = createDb(c.env.rent);
 
         const updated = await db
             .update(beds)
@@ -267,7 +267,7 @@ roomsRoute.delete("/:id/beds/:bedId", requireAdmin(), async (c) => {
     const bedId = parseInt(c.req.param("bedId"), 10);
     if (isNaN(bedId)) return c.json(err("Invalid bed ID"), 400);
 
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
 
     // Check if bed exists and is available
     const bed = await db.select().from(beds).where(eq(beds.id, bedId)).get();

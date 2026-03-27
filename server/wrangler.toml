@@ -1,13 +1,13 @@
-name = "pg-backend"
+name = "rent"
 main = "src/index.ts"
 compatibility_date = "2024-11-01"
 compatibility_flags = ["nodejs_compat"]
 
 # ─── D1 Database ─────────────────────────────────────────────
 [[d1_databases]]
-binding = "DB"
+binding = "rent"
 database_name = "rent"
-database_id = "44fac067-9fad-4b77-a66a-c640dd7b7146"
+database_id = "00934261-93c9-4cbc-a5a6-eb1aff0c6530"
 
 # ─── Environment Variables ────────────────────────────────────
 # Non-secret config (safe to keep here)

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import api from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
 import toast from "react-hot-toast";
-import type { Room, NewBed, BedOption } from "@/lib/types";
+import type { Room, NewBed, BedOption, BED } from "@/lib/types";
 
 interface UseRoomsReturn {
   rooms: Room[];
@@ -13,7 +13,7 @@ interface UseRoomsReturn {
   createRoom: (name: string, description: string, beds: NewBed[]) => Promise<boolean>;
   updateRoom: (roomId: number, name: string, description: string) => Promise<boolean>;
   updateBed: (roomId: number, bedId: number, data: Partial<NewBed>) => Promise<boolean>;
-  addBedToRoom: (roomId: number, bed: NewBed) => Promise<boolean>;
+  addBedToRoom: (roomId: number, bed: NewBed) => Promise<{ success: boolean; newBed?: BED }>;
   deleteRoom: (roomId: number) => Promise<boolean>;
   deleteBed: (roomId: number, bedId: number) => Promise<boolean>;
 }
@@ -89,20 +89,21 @@ export function useRooms(): UseRoomsReturn {
     }
   }, [fetchRooms]);
 
-  const addBedToRoom = useCallback(async (roomId: number, bed: NewBed): Promise<boolean> => {
+  const addBedToRoom = useCallback(async (roomId: number, bed: NewBed): Promise<{ success: boolean; newBed?: BED }> => {
     if (!bed.name || bed.monthlyRent <= 0) {
       toast.error("Enter valid bed details");
-      return false;
+      return { success: false };
     }
 
     try {
-      await api.post(`/api/rooms/${roomId}/beds`, bed);
+      const res = await api.post(`/api/rooms/${roomId}/beds`, bed);
+      const newBed = res.data?.data as BED | undefined;
       toast.success("Bed added successfully");
       await fetchRooms();
-      return true;
+      return { success: true, newBed };
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, "Failed to add bed"));
-      return false;
+      return { success: false };
     }
   }, [fetchRooms]);
 

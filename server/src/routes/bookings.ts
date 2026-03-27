@@ -48,7 +48,7 @@ bookingsRoute.post(
     async (c) => {
         const { sub: tenantId } = c.get("user");
         const { bedId, moveInDate } = c.req.valid("json");
-        const db = createDb(c.env.DB);
+        const db = createDb(c.env.rent);
 
         // Check tenant doesn't already have an active or pending_deposit booking
         const existingBooking = await db
@@ -196,7 +196,7 @@ bookingsRoute.post(
         const { sub: tenantId } = c.get("user");
         const { razorpayOrderId, razorpayPaymentId, razorpaySignature } =
             c.req.valid("json");
-        const db = createDb(c.env.DB);
+        const db = createDb(c.env.rent);
 
         // Verify Razorpay signature
         const isValid = await verifyRazorpaySignature(
@@ -298,7 +298,7 @@ bookingsRoute.post(
 // ─── GET /api/bookings/my — TENANT ───────────────────────────
 bookingsRoute.get("/my", requireAuth(), async (c) => {
     const { sub: tenantId } = c.get("user");
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
 
     const booking = await db
         .select()
@@ -394,7 +394,7 @@ bookingsRoute.put(
     async (c) => {
         const { sub: tenantId } = c.get("user");
         const { moveInDate } = c.req.valid("json");
-        const db = createDb(c.env.DB);
+        const db = createDb(c.env.rent);
 
         const booking = await db
             .select()
@@ -436,7 +436,7 @@ bookingsRoute.put(
     async (c) => {
         const { sub: tenantId } = c.get("user");
         const { expectedMoveOutDate } = c.req.valid("json");
-        const db = createDb(c.env.DB);
+        const db = createDb(c.env.rent);
 
         const booking = await db
             .select()
@@ -470,7 +470,7 @@ bookingsRoute.post(
     requireAuth(),
     async (c) => {
         const { sub: tenantId } = c.get("user");
-        const db = createDb(c.env.DB);
+        const db = createDb(c.env.rent);
 
         // Find pending_deposit booking
         const booking = await db
@@ -498,7 +498,7 @@ bookingsRoute.post(
 
 // ─── GET /api/bookings — ADMIN ────────────────────────────────
 bookingsRoute.get("/", requireAdmin(), async (c) => {
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
 
     const allBookings = await db
         .select()
@@ -514,7 +514,7 @@ bookingsRoute.get("/:id", requireAdmin(), async (c) => {
     const bookingId = parseInt(c.req.param("id"), 10);
     if (isNaN(bookingId)) return c.json(err("Invalid booking ID"), 400);
 
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
 
     const booking = await db
         .select()
@@ -549,7 +549,7 @@ bookingsRoute.post(
         if (isNaN(bookingId)) return c.json(err("Invalid booking ID"), 400);
 
         const body = c.req.valid("json");
-        const db = createDb(c.env.DB);
+        const db = createDb(c.env.rent);
 
         const booking = await db
             .select()
@@ -626,7 +626,7 @@ bookingsRoute.post(
 // ─── GET /api/bookings/my/deductions — TENANT ───────────────
 bookingsRoute.get("/my/deductions", requireAuth(), async (c) => {
     const { sub: tenantId } = c.get("user");
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
 
     const deductions = await getTenantDeductions(db, tenantId);
     return c.json(ok(deductions));
@@ -635,7 +635,7 @@ bookingsRoute.get("/my/deductions", requireAuth(), async (c) => {
 // ─── GET /api/bookings/my/deposit-balance — TENANT ───────────────
 bookingsRoute.get("/my/deposit-balance", requireAuth(), async (c) => {
     const { sub: tenantId } = c.get("user");
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
 
     const balance = await getDepositBalance(db, tenantId);
 
@@ -650,7 +650,7 @@ bookingsRoute.get("/my/deposit-balance", requireAuth(), async (c) => {
 // Returns structured data for deposit receipt generation
 bookingsRoute.get("/my/deposit/receipt", requireAuth(), async (c) => {
     const { sub: tenantId } = c.get("user");
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
 
     // Get tenant's active booking
     const booking = await db

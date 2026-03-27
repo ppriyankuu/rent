@@ -10,7 +10,7 @@ import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { RoomCard } from "./page-comps/RoomCard";
 import { CreateRoomModal } from "./page-comps/CreateRoomModal";
 import { EditRoomModal } from "./page-comps/EditRoomModal";
-import type { Room, NewBed } from "@/lib/types";
+import type { Room, NewBed, BED } from "@/lib/types";
 
 export default function AdminRoomsPage() {
   const {
@@ -76,7 +76,18 @@ export default function AdminRoomsPage() {
   };
 
   const handleAddBedToRoom = async (roomId: number, bed: NewBed) => {
-    return await addBedToRoom(roomId, bed);
+    const result = await addBedToRoom(roomId, bed);
+    if (result.success && result.newBed && editingRoom && roomId === editingRoom.id) {
+      // Add the new bed to editingRoom instantly (modal stays open and updates)
+      setEditingRoom(prev => {
+        if (!prev || prev.id !== roomId) return prev;
+        return {
+          ...prev,
+          beds: [...prev.beds, result.newBed as BED]
+        };
+      });
+    }
+    return result.success;
   };
 
   const confirmDeleteRoomAction = async () => {
@@ -93,6 +104,14 @@ export default function AdminRoomsPage() {
     if (!confirmDeleteBed.roomId || !confirmDeleteBed.bedId) return;
     const success = await deleteBed(confirmDeleteBed.roomId, confirmDeleteBed.bedId);
     if (success) {
+      // Update editingRoom to remove the deleted bed instantly (modal stays open)
+      setEditingRoom(prev => {
+        if (!prev || prev.id !== confirmDeleteBed.roomId) return prev;
+        return {
+          ...prev,
+          beds: prev.beds.filter(b => b.id !== confirmDeleteBed.bedId)
+        };
+      });
       setConfirmDeleteBed({ isOpen: false, roomId: null, bedId: null });
     }
   };
@@ -140,6 +159,7 @@ export default function AdminRoomsPage() {
 
       {/* Edit Room Modal */}
       <EditRoomModal
+        key={editingRoom?.id}
         open={editModalOpen}
         onClose={() => {
           setEditModalOpen(false);

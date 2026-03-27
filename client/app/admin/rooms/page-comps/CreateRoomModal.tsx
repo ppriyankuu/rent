@@ -111,7 +111,9 @@ export function CreateRoomModal({ open, onClose, onSubmit, isSubmitting }: Creat
                   required
                 />
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   className="input input-bordered input-sm w-28"
                   placeholder="Rent"
                   value={bed.monthlyRent}
@@ -119,7 +121,6 @@ export function CreateRoomModal({ open, onClose, onSubmit, isSubmitting }: Creat
                     updateBedField(i, "monthlyRent", Number(e.target.value))
                   }
                   required
-                  min={0}
                 />
                 <button
                   type="button"

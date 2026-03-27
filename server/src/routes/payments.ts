@@ -47,7 +47,7 @@ paymentsRoute.post(
 
         try {
             const result = await initiateRentPayment(
-                createDb(c.env.DB),
+                createDb(c.env.rent),
                 tenantId,
                 rentMonth,
                 c.env.RAZORPAY_KEY_ID,
@@ -73,7 +73,7 @@ paymentsRoute.post(
 
         try {
             const payment = await verifyAndCompletePayment(
-                createDb(c.env.DB),
+                createDb(c.env.rent),
                 tenantId,
                 razorpayOrderId,
                 razorpayPaymentId,
@@ -91,7 +91,7 @@ paymentsRoute.post(
 // ─── GET /api/payments/my — TENANT ───────────────────────────
 paymentsRoute.get("/my", requireAuth(), async (c) => {
     const { sub: tenantId } = c.get("user");
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
 
     const history = await getTenantPayments(db, tenantId);
     return c.json(ok(history));
@@ -106,7 +106,7 @@ paymentsRoute.get("/my/:id/receipt", requireAuth(), async (c) => {
 
     if (isNaN(paymentId)) return c.json(err("Invalid payment ID"), 400);
 
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
 
     // Get payment (ensure it belongs to this tenant)
     const payment = await db
@@ -169,7 +169,7 @@ paymentsRoute.post(
 
         try {
             const payment = await recordManualPayment(
-                createDb(c.env.DB),
+                createDb(c.env.rent),
                 tenantId,
                 amount,
                 rentMonth,
@@ -188,7 +188,7 @@ paymentsRoute.post(
 // Supports pagination: ?page=1&limit=20&search=john
 paymentsRoute.get("/", requireAdmin(), zValidator("query", paginationSchema), async (c) => {
     const { page, limit, search } = c.req.valid("query");
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
     const offset = (page - 1) * limit;
 
     // Get total count
@@ -248,7 +248,7 @@ paymentsRoute.get("/tenant/:tenantId", requireAdmin(), async (c) => {
     const tenantId = parseInt(c.req.param("tenantId"), 10);
     if (isNaN(tenantId)) return c.json(err("Invalid tenant ID"), 400);
 
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
     const history = await getTenantPayments(db, tenantId);
 
     return c.json(ok(history));
@@ -265,7 +265,7 @@ paymentsRoute.post("/webhook", async (c) => {
 
     try {
         const rawBody = await c.req.text();
-        const db = createDb(c.env.DB);
+        const db = createDb(c.env.rent);
 
         const result = await handleWebhookPayment(
             db,

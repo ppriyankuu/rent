@@ -30,7 +30,7 @@ complaintsRoute.post(
     async (c) => {
         const { sub: tenantId } = c.get("user");
         const { subject, message } = c.req.valid("json");
-        const db = createDb(c.env.DB);
+        const db = createDb(c.env.rent);
 
         const now = nowISO();
         const complaint = await db
@@ -48,7 +48,7 @@ complaintsRoute.post(
 // ─── GET /api/complaints/my — TENANT ─────────────────────────
 complaintsRoute.get("/my", requireAuth(), async (c) => {
     const { sub: tenantId } = c.get("user");
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
 
     const myComplaints = await db
         .select()
@@ -64,7 +64,7 @@ complaintsRoute.get("/my", requireAuth(), async (c) => {
 // Supports pagination: ?page=1&limit=20&search=subject
 complaintsRoute.get("/", requireAdmin(), zValidator("query", paginationSchema), async (c) => {
     const { page, limit, search } = c.req.valid("query");
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
     const offset = (page - 1) * limit;
 
     // Build search condition if search term provided
@@ -127,7 +127,7 @@ complaintsRoute.get("/:id", requireAdmin(), async (c) => {
     const id = parseInt(c.req.param("id"), 10);
     if (isNaN(id)) return c.json(err("Invalid ID"), 400);
 
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
     const complaint = await db
         .select()
         .from(complaints)
@@ -149,7 +149,7 @@ complaintsRoute.put(
         if (isNaN(id)) return c.json(err("Invalid ID"), 400);
 
         const body = c.req.valid("json");
-        const db = createDb(c.env.DB);
+        const db = createDb(c.env.rent);
 
         const updated = await db
             .update(complaints)

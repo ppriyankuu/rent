@@ -8,6 +8,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "wrangler d1 migrations apply rent --local",
     "db:migrate:remote": "wrangler d1 migrations apply rent --remote",
+    "db:seed:local": "node scripts/seed-db.js --local",
+    "db:seed:remote": "node scripts/seed-db.js --remote",
     "db:studio": "drizzle-kit studio",
     "type-check": "tsc --noEmit"
   },

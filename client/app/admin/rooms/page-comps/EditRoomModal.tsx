@@ -18,6 +18,7 @@ interface EditRoomModalProps {
 
 /**
  * Modal for editing room details and beds.
+ * Note: Parent should pass key={room?.id} to reset state when room changes.
  */
 export function EditRoomModal({
   open,
@@ -30,17 +31,14 @@ export function EditRoomModal({
   isSaving,
 }: EditRoomModalProps) {
   const [newBedForRoom, setNewBedForRoom] = useState<NewBed>({ name: "", monthlyRent: 0 });
-  const [localRoom, setLocalRoom] = useState<Room | null>(room);
+  const [editedName, setEditedName] = useState(room?.name ?? "");
+  const [editedDescription, setEditedDescription] = useState(room?.description ?? "");
 
-  useState(() => {
-    setLocalRoom(room);
-  });
-
-  if (!localRoom) return null;
+  if (!room) return null;
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await onSave(localRoom.id, localRoom.name, localRoom.description);
+    const success = await onSave(room.id, editedName, editedDescription);
     if (success) {
       onClose();
     }
@@ -49,7 +47,7 @@ export function EditRoomModal({
   const handleAddBed = async () => {
     if (!newBedForRoom.name || newBedForRoom.monthlyRent <= 0) return;
 
-    const success = await onAddBed(localRoom.id, newBedForRoom);
+    const success = await onAddBed(room.id, newBedForRoom);
     if (success) {
       setNewBedForRoom({ name: "", monthlyRent: 0 });
     }
@@ -65,8 +63,8 @@ export function EditRoomModal({
           <input
             type="text"
             className="input input-bordered w-full"
-            value={localRoom.name}
-            onChange={(e) => setLocalRoom(prev => prev ? { ...prev, name: e.target.value } : null)}
+            value={editedName}
+            onChange={(e) => setEditedName(e.target.value)}
             required
           />
         </div>
@@ -77,21 +75,21 @@ export function EditRoomModal({
           <input
             type="text"
             className="input input-bordered w-full"
-            value={localRoom.description}
-            onChange={(e) => setLocalRoom(prev => prev ? { ...prev, description: e.target.value } : null)}
+            value={editedDescription}
+            onChange={(e) => setEditedDescription(e.target.value)}
           />
         </div>
 
         <div>
           <label className="label-text font-medium mb-2 block">Beds (Edit details)</label>
           <div className="space-y-2">
-            {localRoom.beds.map((bed) => (
+            {room.beds.map((bed) => (
               <div key={bed.id} className="flex gap-2 items-center">
                 <input
                   type="text"
                   className="input input-bordered input-sm flex-1"
                   value={bed.name}
-                  onChange={(e) => onUpdateBed(localRoom.id, bed.id, { name: e.target.value })}
+                  onChange={(e) => onUpdateBed(room.id, bed.id, { name: e.target.value })}
                   required
                 />
                 <input
@@ -100,13 +98,13 @@ export function EditRoomModal({
                   pattern="[0-9]*"
                   className="input input-bordered input-sm w-28"
                   value={bed.monthlyRent}
-                  onChange={(e) => onUpdateBed(localRoom.id, bed.id, { monthlyRent: Number(e.target.value) || 0 })}
+                  onChange={(e) => onUpdateBed(room.id, bed.id, { monthlyRent: Number(e.target.value) || 0 })}
                   required
                 />
                 <button
                   type="button"
                   className="btn btn-ghost btn-sm btn-square"
-                  onClick={() => onDeleteBed(localRoom.id, bed.id)}
+                  onClick={() => onDeleteBed(room.id, bed.id)}
                   title="Delete Bed"
                 >
                   <Trash2 className="h-4 w-4 text-error" />

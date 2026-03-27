@@ -35,7 +35,7 @@ adminRoute.use("*", requireAdmin());
 
 // ─── GET /api/admin/dashboard ─────────────────────────────────
 adminRoute.get("/dashboard", async (c) => {
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
 
     // Parallel queries for efficiency (Promise.all)
     const [
@@ -77,7 +77,7 @@ adminRoute.get("/dashboard", async (c) => {
 // Supports pagination: ?page=1&limit=20&search=john
 adminRoute.get("/tenants", zValidator("query", paginationSchema), async (c) => {
     const { page, limit, search } = c.req.valid("query");
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
     const offset = (page - 1) * limit;
 
     // Build search condition if search term provided
@@ -152,7 +152,7 @@ adminRoute.get("/tenants/:id", async (c) => {
     const tenantId = parseInt(c.req.param("id"), 10);
     if (isNaN(tenantId)) return c.json(err("Invalid tenant ID"), 400);
 
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
 
     // Single query with JOINs for tenant + active booking + bed + room + deposit
     const tenantWithBooking = await db
@@ -282,7 +282,7 @@ adminRoute.put(
         if (isNaN(tenantId)) return c.json(err("Invalid tenant ID"), 400);
 
         const { monthlyRent, applyToAll } = c.req.valid("json");
-        const db = createDb(c.env.DB);
+        const db = createDb(c.env.rent);
 
         if (applyToAll) {
             // Update all active bookings
@@ -316,7 +316,7 @@ adminRoute.put("/tenants/:id/deactivate", async (c) => {
     const tenantId = parseInt(c.req.param("id"), 10);
     if (isNaN(tenantId)) return c.json(err("Invalid tenant ID"), 400);
 
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
 
     const updated = await db
         .update(users)
@@ -374,7 +374,7 @@ adminRoute.put("/tenants/:id/reactivate", async (c) => {
     const tenantId = parseInt(c.req.param("id"), 10);
     if (isNaN(tenantId)) return c.json(err("Invalid tenant ID"), 400);
 
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
 
     const tenant = await db
         .select({ id: users.id, isActive: users.isActive })
@@ -400,7 +400,7 @@ adminRoute.delete("/tenants/:id", adminDeleteRateLimit(), async (c) => {
     const tenantId = parseInt(c.req.param("id"), 10);
     if (isNaN(tenantId)) return c.json(err("Invalid tenant ID"), 400);
 
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
 
     // Check if tenant exists
     const tenant = await db
@@ -457,7 +457,7 @@ adminRoute.delete("/tenants/:id", adminDeleteRateLimit(), async (c) => {
 
 // ─── GET /api/admin/settings ──────────────────────────────────
 adminRoute.get("/settings", async (c) => {
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
     const allSettings = await getAllSettings(db);
     return c.json(ok(allSettings));
 });
@@ -468,7 +468,7 @@ adminRoute.post(
     zValidator("json", adminCreateTenantSchema),
     async (c) => {
         const body = c.req.valid("json");
-        const db = createDb(c.env.DB);
+        const db = createDb(c.env.rent);
 
         // Check if email already exists
         const existing = await db
@@ -564,7 +564,7 @@ adminRoute.put(
     zValidator("json", updateSettingsSchema),
     async (c) => {
         const body = c.req.valid("json");
-        const db = createDb(c.env.DB);
+        const db = createDb(c.env.rent);
 
         const updates: Record<string, string> = {};
         if (body.rent_due_start_day !== undefined)
@@ -585,7 +585,7 @@ adminRoute.put(
 // ─── GET /api/admin/export/payments — CSV export ──────────────
 // Generates a CSV file of all payments for record keeping
 adminRoute.get("/export/payments", async (c) => {
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
 
     const allPayments = await db
         .select({
@@ -632,7 +632,7 @@ adminRoute.get("/export/payments", async (c) => {
 
 // ─── GET /api/admin/export/tenants — CSV export ───────────────
 adminRoute.get("/export/tenants", async (c) => {
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
 
     const tenantData = await db
         .select({
@@ -686,7 +686,7 @@ adminRoute.post(
         const { amount, reason } = c.req.valid("json");
 
         try {
-            const db = createDb(c.env.DB);
+            const db = createDb(c.env.rent);
             const result = await createDepositDeduction(db, tenantId, adminId, amount, reason);
 
             return c.json(ok({
@@ -706,7 +706,7 @@ adminRoute.get("/tenants/:tenantId/deductions", async (c) => {
     const tenantId = parseInt(c.req.param("tenantId"), 10);
     if (isNaN(tenantId)) return c.json(err("Invalid tenant ID"), 400);
 
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
     const deductions = await getTenantDeductions(db, tenantId);
 
     return c.json(ok(deductions));
@@ -717,7 +717,7 @@ adminRoute.get("/tenants/:tenantId/deposit-balance", async (c) => {
     const tenantId = parseInt(c.req.param("tenantId"), 10);
     if (isNaN(tenantId)) return c.json(err("Invalid tenant ID"), 400);
 
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
     const balance = await getDepositBalance(db, tenantId);
 
     if (!balance) {
@@ -733,7 +733,7 @@ adminRoute.delete("/deductions/:id", async (c) => {
     if (isNaN(deductionId)) return c.json(err("Invalid deduction ID"), 400);
 
     try {
-        const db = createDb(c.env.DB);
+        const db = createDb(c.env.rent);
         const result = await deleteDepositDeduction(db, deductionId);
 
         return c.json(ok({

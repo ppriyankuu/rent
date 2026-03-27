@@ -1,6 +1,6 @@
 export interface Env {
     // D1 database binding (defined in [[d1_databases]] in wrangler.toml)
-    DB: D1Database;
+    rent: D1Database;
 
     // Secrets / environment variables (set via `wrangler secret put` or [vars])
     JWT_SECRET: string;

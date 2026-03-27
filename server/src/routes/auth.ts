@@ -32,7 +32,7 @@ const auth = new Hono<{ Bindings: Env; Variables: Variables }>();
 // Rate limited: 3 signups per hour per IP
 auth.post("/signup", signupRateLimit(), zValidator("json", signupSchema), async (c) => {
     const body = c.req.valid("json");
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
 
     // Check if email already exists
     const existing = await db
@@ -73,7 +73,7 @@ auth.post("/signup", signupRateLimit(), zValidator("json", signupSchema), async 
 // Rate limited: 5 login attempts per 15 minutes per IP
 auth.post("/login", loginRateLimit(), zValidator("json", loginSchema), async (c) => {
     const { email, password } = c.req.valid("json");
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
 
     const user = await db
         .select()
@@ -99,8 +99,8 @@ auth.post("/login", loginRateLimit(), zValidator("json", loginSchema), async (c)
 
     // Reset rate limit on successful login
     const ip = c.req.header("CF-Connecting-IP") ||
-               c.req.header("X-Forwarded-For")?.split(",")[0] ||
-               "unknown";
+        c.req.header("X-Forwarded-For")?.split(",")[0] ||
+        "unknown";
     resetRateLimit(getRateLimitKey("login", ip));
 
     return c.json(
@@ -132,7 +132,7 @@ auth.post("/google/callback", zValidator("json", googleCallbackSchema), async (c
         return c.json(err("Invalid or expired state parameter - possible CSRF attack"), 400);
     }
 
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
 
     // Get user info from Google
     const profile = await exchangeCodeForProfile(
@@ -185,7 +185,7 @@ auth.post("/google/callback", zValidator("json", googleCallbackSchema), async (c
 // ─── GET /api/auth/me ─────────────────────────────────────────
 auth.get("/me", requireAuth(), async (c) => {
     const { sub } = c.get("user");
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
 
     const user = await db
         .select()
@@ -202,7 +202,7 @@ auth.get("/me", requireAuth(), async (c) => {
 auth.put("/me", requireAuth(), zValidator("json", updateProfileSchema), async (c) => {
     const { sub } = c.get("user");
     const body = c.req.valid("json");
-    const db = createDb(c.env.DB);
+    const db = createDb(c.env.rent);
 
     const updatedUser = await db
         .update(users)
