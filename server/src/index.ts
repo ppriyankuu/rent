@@ -44,7 +44,7 @@ const app = new Hono<{ Bindings: Env }>();
 app.use("*", async (c, next) => {
   const allowedOrigins = c.env.ALLOWED_ORIGINS
     ? c.env.ALLOWED_ORIGINS.split(",").map((o: string) => o.trim())
-    : ["http://localhost:3000"];
+    : ["http://localhost:3000", "https://rent-jet.vercel.app"];
 
   const corsMiddleware = cors({
     origin: allowedOrigins,

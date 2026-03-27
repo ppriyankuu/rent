@@ -60,11 +60,11 @@ export function DashboardStats({
             </span>
             {bed.status === "occupied" && (
               <button
-                className="btn btn-ghost btn-xs btn-square"
+                className="btn btn-ghost btn-xs"
                 onClick={onEditMoveOutDate}
                 title="Edit Expected Move-Out Date"
               >
-                <Edit2 className="h-3 w-3" />
+                <Edit2 className="h-3 w-3" /> Edit
               </button>
             )}
           </div>
@@ -90,11 +90,11 @@ export function DashboardStats({
             <span>{deposit ? `₹${deposit.amount.toLocaleString()}` : "N/A"}</span>
             {deposit && deposit.paidAt && (
               <button
-                className="btn btn-ghost btn-xs btn-square"
+                className="btn btn-ghost btn-xs"
                 onClick={onViewDepositReceipt}
                 title="View Receipt"
               >
-                <Receipt className="h-3 w-3" />
+                <Receipt className="h-3 w-3" /> View
               </button>
             )}
           </div>

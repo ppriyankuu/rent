@@ -13,10 +13,10 @@ database_id = "00934261-93c9-4cbc-a5a6-eb1aff0c6530"
 # Non-secret config (safe to keep here)
 [vars]
 ENVIRONMENT = "development"
-GOOGLE_REDIRECT_URI = "http://localhost:3000/auth/google/callback"
+GOOGLE_REDIRECT_URI = "https://rent-jet.vercel.app/auth/google/callback"
 # Comma-separated list of allowed CORS origins
 # For production, set via: wrangler secret put ALLOWED_ORIGINS
-ALLOWED_ORIGINS = "http://localhost:3000"
+ALLOWED_ORIGINS = "http://localhost:3000,https://rent-jet.vercel.app"
 
 # ─── Secrets (NEVER commit these — set via CLI) ──────────────
 # Run each of these before first deploy:
