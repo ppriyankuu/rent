@@ -14,6 +14,7 @@ import { RoomCard } from "./page-comps/HomeRoomCard";
 import { BookingModal } from "./page-comps/BookingModal";
 import { HouseRules } from "./page-comps/HouseRules";
 import { HomeFooter } from "./page-comps/HomeFooter";
+import { RoomImageModal } from "./page-comps/RoomImageModal";
 import type { Room, BED } from "@/lib/types";
 
 export default function HomePage() {
@@ -25,6 +26,13 @@ export default function HomePage() {
   const [selectedBed, setSelectedBed] = useState<BED | null>(null);
   const [moveInDate, setMoveInDate] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
+  const [imageModalOpen, setImageModalOpen] = useState(false);
+
+  const roomImages = [
+    "https://pub-26dd82f92afb4c7aaa0f89e51ec58998.r2.dev/images/room01.jpg",
+    "https://pub-26dd82f92afb4c7aaa0f89e51ec58998.r2.dev/images/room02.jpg",
+    "https://pub-26dd82f92afb4c7aaa0f89e51ec58998.r2.dev/images/kitchen.jpg",
+  ];
 
   const { isAuthenticated, user } = useAuth();
 
@@ -104,12 +112,9 @@ export default function HomePage() {
           <p className="mt-6 max-w-2xl mx-auto text-lg text-base-content/60">
             Browse rooms, book a bed, and avoid awkward landlord conversations.
           </p>
-          {!isAuthenticated && (
-            <div className="mt-8 flex justify-center gap-4">
-              <Link href="/signup" className="btn btn-primary btn-lg">Get Started</Link>
-              <a href="#rooms" className="btn btn-outline btn-lg">View Rooms</a>
-            </div>
-          )}
+          <div className="mt-8 flex justify-center gap-4">
+            <button onClick={() => setImageModalOpen(true)} className="btn btn-primary btn-lg">Have a look</button>
+          </div>
         </section>
 
         <section id="rooms" className="py-10 sm:py-12 border-t border-base-200">
@@ -148,6 +153,12 @@ export default function HomePage() {
         setMoveInDate={setMoveInDate}
         deposit={globalDeposit}
         onSubmit={handleConfirmBooking}
+      />
+
+      <RoomImageModal
+        open={imageModalOpen}
+        onClose={() => setImageModalOpen(false)}
+        images={roomImages}
       />
     </div>
   );
