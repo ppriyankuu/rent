@@ -138,7 +138,6 @@ export default function TenantDetailPage() {
 
       if (success) {
         setEndModalOpen(false);
-        await refreshTenantDetail(tenantId);
       }
     } catch {
       // Error already handled in hook

@@ -107,13 +107,30 @@ export function useTenants(): UseTenantsReturn {
     try {
       await api.put(`/api/admin/tenants/${tenantId}/rent`, { monthlyRent, applyToAll });
       toast.success("Rent updated!");
-      await fetchTenantDetail(tenantId);
+
+      // Update the tenantDetail state directly instead of refetching
+      setTenantDetail((prev) => {
+        if (!prev || !prev.booking) return prev;
+        return {
+          ...prev,
+          booking: {
+            ...prev.booking,
+            monthlyRent,
+          },
+        };
+      });
+
+      // Also update the tenants list if needed
+      setTenants((prev) =>
+        prev.map((t) => (t.id === Number(tenantId) ? { ...t, monthlyRent } : t))
+      );
+
       return true;
     } catch {
       toast.error("Failed to update rent");
       return false;
     }
-  }, [fetchTenantDetail]);
+  }, []);
 
   const deactivateTenant = useCallback(async (tenantId: number): Promise<boolean> => {
     try {
@@ -201,6 +218,29 @@ export function useTenants(): UseTenantsReturn {
     try {
       await api.post(`/api/bookings/${bookingId}/end`, data);
       toast.success("Booking ended!");
+
+      // Update the tenantDetail state directly instead of refetching
+      setTenantDetail((prev) => {
+        if (!prev || !prev.booking) return prev;
+        return {
+          ...prev,
+          booking: {
+            ...prev.booking,
+            status: "ended",
+            moveOutDate: data.moveOutDate,
+          },
+        };
+      });
+
+      // Update deposit balance to reflect the refund
+      setDepositBalance((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          remainingBalance: 0,
+        };
+      });
+
       return true;
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
