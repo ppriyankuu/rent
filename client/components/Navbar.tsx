@@ -4,11 +4,14 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { LogOut, Menu, Home, LayoutDashboard, Shield } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
+import { ConfirmModal } from "./common";
 
 export function Navbar({ hideMobileMenu = false, drawerId }: { hideMobileMenu?: boolean, drawerId?: string }) {
   const { user, isAuthenticated, isAdmin, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [confirmLogout, setConfirmLogout] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -38,7 +41,7 @@ export function Navbar({ hideMobileMenu = false, drawerId }: { hideMobileMenu?: 
         )}
         <Link
           href="/"
-          className={`btn btn-ghost text-xl font-bold ${pathname === "/" ? "hidden sm:flex" : ""
+          className={`btn btn-ghost border-2 border-blue-600/50 text-xl font-bold ${pathname === "/" ? "hidden sm:flex" : ""
             }`}
         >
           PG&apos;s PG
@@ -84,13 +87,16 @@ export function Navbar({ hideMobileMenu = false, drawerId }: { hideMobileMenu?: 
       </div>
 
       {/* Auth buttons */}
-      <div className="navbar-end gap-2">
+      <div className="navbar-end gap-2 pr-2">
         {isAuthenticated ? (
           <div className="flex items-center gap-3">
             <span className="text-sm hidden sm:inline">
               Hi, <strong>{user?.name?.split(" ")[0]}</strong>
             </span>
-            <button onClick={handleLogout} className="btn btn-ghost btn-sm gap-1">
+            <button
+              onClick={() => setConfirmLogout(true)}
+              className="btn btn-ghost btn-sm gap-1"
+            >
               <LogOut className="h-4 w-4" /> Logout
             </button>
           </div>
@@ -108,6 +114,16 @@ export function Navbar({ hideMobileMenu = false, drawerId }: { hideMobileMenu?: 
           </label>
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={confirmLogout}
+        onClose={() => setConfirmLogout(false)}
+        onConfirm={handleLogout}
+        title="Logout"
+        message="Are you sure you want to logout?"
+        confirmText="Yes, Logout"
+        variant="warning"
+      />
     </div>
   );
 }
