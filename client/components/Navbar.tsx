@@ -87,7 +87,7 @@ export function Navbar({ hideMobileMenu = false, drawerId }: { hideMobileMenu?: 
       </div>
 
       {/* Auth buttons */}
-      <div className="navbar-end gap-2 pr-2">
+      <div className="navbar-end gap-2 pr-1">
         {isAuthenticated ? (
           <div className="flex items-center gap-3">
             <span className="text-sm hidden sm:inline">

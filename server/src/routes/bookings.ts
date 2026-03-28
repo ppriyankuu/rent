@@ -570,16 +570,21 @@ bookingsRoute.post(
             .get();
 
         if (deposit) {
-            // Validate that refund + deduction equals original deposit amount
-            const totalRefundAndDeduction = body.refundAmount + body.deductionAmount;
-            if (totalRefundAndDeduction !== deposit.amount) {
-                return c.json(
-                    err(
-                        `Invalid amounts: Refund (${body.refundAmount}) + Deduction (${body.deductionAmount}) = ${totalRefundAndDeduction} ` +
-                        `does not equal original deposit amount (${deposit.amount})`
-                    ),
-                    400
-                );
+            // Get the current deposit balance (accounts for previous deductions)
+            const balance = await getDepositBalance(db, booking.tenantId);
+
+            if (balance) {
+                // Validate that refund + deduction equals remaining balance (not original amount)
+                const totalRefundAndDeduction = body.refundAmount + body.deductionAmount;
+                if (totalRefundAndDeduction !== balance.remainingBalance) {
+                    return c.json(
+                        err(
+                            `Invalid amounts: Refund (${body.refundAmount}) + Deduction (${body.deductionAmount}) = ${totalRefundAndDeduction} ` +
+                            `does not equal remaining deposit balance (${balance.remainingBalance})`
+                        ),
+                        400
+                    );
+                }
             }
 
             // Validate deduction reason is provided when deducting

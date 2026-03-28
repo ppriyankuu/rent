@@ -153,22 +153,43 @@ export function useTenants(): UseTenantsReturn {
 
   const chargeDeduction = useCallback(async (tenantId: string, amount: number, reason: string): Promise<boolean> => {
     try {
-      await api.post(`/api/admin/tenants/${tenantId}/deductions`, { amount, reason });
+      const res = await api.post(`/api/admin/tenants/${tenantId}/deductions`, { amount, reason });
+      const newDeduction = res.data?.data?.deduction as Deduction | undefined;
+      const newBalance = res.data?.data?.balance as DepositBalance | undefined;
+
+      // Update deductions list by adding the new deduction
+      if (newDeduction) {
+        setDeductions((prev) => [newDeduction, ...prev]);
+      }
+
+      // Update deposit balance
+      if (newBalance) {
+        setDepositBalance(newBalance);
+      }
+
       toast.success("Deduction charged successfully");
-      await fetchTenantDetail(tenantId);
       return true;
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       toast.error(error.response?.data?.message || "Failed to charge deduction");
       return false;
     }
-  }, [fetchTenantDetail]);
+  }, []);
 
   const deleteDeduction = useCallback(async (deductionId: number): Promise<boolean> => {
     try {
-      await api.delete(`/api/admin/deductions/${deductionId}`);
+      const res = await api.delete(`/api/admin/deductions/${deductionId}`);
+      const newBalance = res.data?.data?.balance as DepositBalance | undefined;
+
+      // Remove the deduction from the list
+      setDeductions((prev) => prev.filter((d) => d.id !== deductionId));
+
+      // Update deposit balance
+      if (newBalance) {
+        setDepositBalance(newBalance);
+      }
+
       toast.success("Deduction reversed successfully");
-      // Refresh the tenant detail to get updated deductions
       return true;
     } catch {
       toast.error("Failed to reverse deduction");

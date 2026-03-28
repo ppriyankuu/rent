@@ -105,7 +105,6 @@ export default function TenantDetailPage() {
     if (success) {
       setDeductionModalOpen(false);
       setDeductionForm({ amount: "", reason: "" });
-      await refreshTenantDetail(tenantId);
     }
     setChargingDeduction(false);
   };
@@ -116,7 +115,6 @@ export default function TenantDetailPage() {
     const success = await deleteDeduction(deleteConfirmModal.deductionId);
     if (success) {
       setDeleteConfirmModal({ isOpen: false, deductionId: null });
-      await refreshTenantDetail(tenantId);
     }
   };
 

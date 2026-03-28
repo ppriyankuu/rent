@@ -86,7 +86,7 @@ export function EndBookingModal({
             value={refundAmount}
           />
           <label className="label">
-            <span className="label-text-alt text-base-content/60">
+            <span className="label-text-alt text-base-content/60 whitespace-normal wrap-break-word">
               Refund = Remaining Balance ({remainingBalance.toLocaleString()}) - Final Deduction
             </span>
           </label>

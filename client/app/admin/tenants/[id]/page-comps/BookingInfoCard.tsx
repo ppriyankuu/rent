@@ -30,7 +30,7 @@ export function BookingInfoCard({
           <h2 className="font-bold text-lg flex items-center gap-2">
             <Bed className="h-5 w-5" /> Booking
           </h2>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             {booking.status !== "ended" && (
               <button
                 className="btn btn-outline btn-sm"
