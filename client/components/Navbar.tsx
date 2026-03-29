@@ -22,7 +22,7 @@ export function Navbar({ hideMobileMenu = false, drawerId }: { hideMobileMenu?: 
     // <div className="navbar bg-base-100 shadow-sm border-b border-base-200 px-4">
     <div className="navbar relative z-50 bg-base-100 shadow-sm border-b border-base-200 px-4">
       {/* Mobile menu */}
-      <div className="navbar-start">
+      <div className="navbar-start flex gap-1 ml-1">
         {!hideMobileMenu && (
           <div className="dropdown">
             <div tabIndex={0} role="button" className="btn btn-ghost lg:hidden">
