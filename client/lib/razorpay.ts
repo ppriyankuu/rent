@@ -48,7 +48,7 @@ export async function openRazorpayCheckout(
       key: options.razorpayKeyId,
       amount: options.amount,
       currency: options.currency || "INR",
-      name: options.name || "PG Rent Payment",
+      name: options.name || "Pay Your Rent",
       description: options.description || "Payment",
       order_id: options.orderId,
       prefill: options.prefill || {},
