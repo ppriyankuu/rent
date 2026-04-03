@@ -33,7 +33,8 @@ export function StatusBadge({ status, size = "sm", className = "" }: StatusBadge
     case "reserved":
       return <span className={`${baseClass} badge-warning`}>{formatStatusLabel(status)}</span>;
 
-    // Info states
+    // Info/Neutral states
+    case "no_booking":
     case "deposit_paid":
       return <span className={`${baseClass} badge-info`}>{formatStatusLabel(status)}</span>;
 

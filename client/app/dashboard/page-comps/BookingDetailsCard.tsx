@@ -3,6 +3,7 @@
 import { MapPin, CalendarDays } from "lucide-react";
 import { formatDateLong } from "@/lib/utils/date";
 import { formatOrdinal } from "@/lib/utils/ordinal";
+import { formatStatus } from "@/lib/formatStatus";
 import type { BookingData } from "@/lib/types";
 
 interface BookingDetailsProps {
@@ -22,7 +23,7 @@ export function BookingDetailsCard({ bookingData }: BookingDetailsProps) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
           <div>
             <p className="text-sm text-base-content/60">Status</p>
-            <p className="font-medium capitalize">{booking.status.replace("_", " ")}</p>
+            <p className="font-medium">{formatStatus(booking.status)}</p>
           </div>
           <div>
             <p className="text-sm text-base-content/60">Next Rent Due</p>

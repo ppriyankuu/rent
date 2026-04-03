@@ -166,7 +166,15 @@ export default function AdminTenantsPage() {
                   </td>
                   <td>
                     <StatusBadge
-                      status={!t.isActive ? "inactive" : t.bookingStatus === "active" ? "active" : "pending"}
+                      status={
+                        !t.isActive
+                          ? "inactive"
+                          : t.bookingStatus === "active"
+                            ? "active"
+                            : t.bookingStatus
+                              ? t.bookingStatus
+                              : "no_booking"
+                      }
                     />
                   </td>
                   <td>
