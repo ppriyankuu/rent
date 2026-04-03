@@ -115,14 +115,14 @@ export const deposits = sqliteTable("deposits", {
 // ─────────────────────────────────────────────────────────────
 // PAYMENTS (Monthly Rent Payments)
 // Each row = one rent payment event.
-// type: "online" = paid via Razorpay | "manual" = admin recorded cash/UPI
+// type: "online" = Razorpay (deposits/legacy) | "manual" = admin recorded | "upi" = tenant UPI flow
 // ─────────────────────────────────────────────────────────────
 export const payments = sqliteTable("payments", {
     id: integer("id").primaryKey({ autoIncrement: true }),
     tenantId: integer("tenant_id").notNull().references(() => users.id),
     bookingId: integer("booking_id").notNull().references(() => bookings.id),
     amount: real("amount").notNull(),
-    type: text("type", { enum: ["online", "manual"] }).notNull(),
+    type: text("type", { enum: ["online", "manual", "upi"] }).notNull(),
     status: text("status", {
         enum: ["pending", "completed", "failed"],
     }).notNull().default("pending"),
@@ -130,6 +130,15 @@ export const payments = sqliteTable("payments", {
     razorpayOrderId: text("razorpay_order_id"),
     razorpayPaymentId: text("razorpay_payment_id"),
     razorpaySignature: text("razorpay_signature"),
+    // NEW: UPI verification fields
+    utr: text("utr"),
+    verificationStatus: text("verification_status", {
+        enum: ["pending", "verified", "rejected"],
+    }),
+    utrSubmittedAt: text("utr_submitted_at"),
+    verifiedBy: integer("verified_by").references(() => users.id),
+    verifiedAt: text("verified_at"),
+    rejectionReason: text("rejection_reason"),
     // Rent period this payment covers (e.g. "2025-06")
     rentMonth: text("rent_month").notNull(),              // format: YYYY-MM
     lateFee: real("late_fee").notNull().default(0),
@@ -141,6 +150,7 @@ export const payments = sqliteTable("payments", {
     index("idx_payments_tenant_status").on(table.tenantId, table.status),
     index("idx_payments_status").on(table.status),
     index("idx_payments_booking_id").on(table.bookingId),
+    index("idx_payments_verification_status").on(table.verificationStatus),
 ]));
 
 // ─────────────────────────────────────────────────────────────

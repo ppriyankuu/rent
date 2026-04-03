@@ -118,6 +118,18 @@ export const manualPaymentSchema = z.object({
     notes: z.string().optional(),
 });
 
+// Tenant submits UTR after making UPI payment
+export const submitUtrSchema = z.object({
+    utr: z.string().regex(/^[A-Z0-9]{12}$/, "UTR must be exactly 12 alphanumeric characters"),
+});
+
+// Admin verifies or rejects a UPI payment
+export const adminVerifyPaymentSchema = z.object({
+    paymentId: z.number().int().positive(),
+    action: z.enum(["verify", "reject"]),
+    rejectionReason: z.string().optional(),
+});
+
 // ─── Complaints ───────────────────────────────────────────────
 
 export const createComplaintSchema = z.object({
@@ -185,3 +197,5 @@ export type UpdateComplaintInput = z.infer<typeof updateComplaintSchema>;
 export type GoogleCallbackInput = z.infer<typeof googleCallbackSchema>;
 export type AdminCreateTenantInput = z.infer<typeof adminCreateTenantSchema>;
 export type CreateDeductionInput = z.infer<typeof createDeductionSchema>;
+export type SubmitUtrInput = z.infer<typeof submitUtrSchema>;
+export type AdminVerifyPaymentInput = z.infer<typeof adminVerifyPaymentSchema>;

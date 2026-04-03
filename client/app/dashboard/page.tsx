@@ -6,6 +6,7 @@ import { DashboardSkeleton } from "@/components/Skeleton";
 import { openRazorpayCheckout } from "@/lib/razorpay";
 import { getErrorMessage } from "@/lib/errors";
 import { useBooking } from "@/hooks/useBooking";
+import { UPICheckoutModal } from "@/components/upi/UPICheckoutModal";
 import { AccountStatusAlert } from "./page-comps/AccountStatusAlert";
 import { DashboardStats } from "./page-comps/DashboardStats";
 import { BookingDetailsCard } from "./page-comps/BookingDetailsCard";
@@ -45,6 +46,15 @@ export default function DashboardPage() {
   const [payingRent, setPayingRent] = useState(false);
   const [retryingDeposit, setRetryingDeposit] = useState(false);
 
+  // UPI payment states
+  const [upiModalOpen, setUpiModalOpen] = useState(false);
+  const [upiPaymentData, setUpiPaymentData] = useState<{
+    paymentId: number;
+    upiLink: string;
+    amount: number;
+    rentMonth: string;
+  } | null>(null);
+
   const handleUpdateMoveInDate = async (e: React.SubmitEvent) => {
     e.preventDefault();
     if (!newMoveInDate) return;
@@ -79,29 +89,25 @@ export default function DashboardPage() {
       const paymentData = await api.post("/api/payments/initiate", { rentMonth }).then(res => res.data.data);
       if (!paymentData) return;
 
-      const { razorpayOrderId, razorpayKeyId, amount } = paymentData;
-
-      const result = await openRazorpayCheckout({
-        razorpayKeyId,
-        orderId: razorpayOrderId,
-        amount: amount * 100,
-        description: `Rent for ${rentMonth}`,
-        prefill: {
-          name: user?.name,
-          email: user?.email,
-        },
+      // Store payment data and open UPI checkout modal
+      setUpiPaymentData({
+        paymentId: paymentData.paymentId,
+        upiLink: paymentData.upiLink,
+        amount: paymentData.amount,
+        rentMonth,
       });
-
-      await api.post("/api/payments/verify", { ...result, rentMonth });
-      await refreshBooking();
+      setUpiModalOpen(true);
     } catch (err: unknown) {
-      const msg = getErrorMessage(err, "Payment failed");
-      if (msg !== "Payment cancelled by user") {
-        toast.error(msg);
-      }
+      const msg = getErrorMessage(err, "Payment initiation failed");
+      toast.error(msg);
     } finally {
       setPayingRent(false);
     }
+  };
+
+  const handleUPIProceed = () => {
+    // Redirect to verify page
+    window.location.href = "/dashboard/payments/verify";
   };
 
   const handleRetryDeposit = async () => {
@@ -210,6 +216,17 @@ export default function DashboardPage() {
         open={depositReceiptOpen}
         onClose={() => setDepositReceiptOpen(false)}
         receipt={depositReceipt}
+      />
+
+      <UPICheckoutModal
+        open={upiModalOpen}
+        onClose={() => setUpiModalOpen(false)}
+        onProceed={handleUPIProceed}
+        amount={upiPaymentData?.amount || 0}
+        rentMonth={upiPaymentData?.rentMonth || ""}
+        upiId={process.env.NEXT_PUBLIC_UPI_ID ?? "workwithpriyanku@oksbi"}
+        payeeName={process.env.NEXT_PUBLIC_UPI_PAYEE_NAME ?? "Priyanku Gogoi"}
+        paymentId={upiPaymentData?.paymentId || 0}
       />
     </div>
   );

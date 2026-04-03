@@ -105,6 +105,12 @@ export interface BookingData {
   isRentPaid: boolean;
   razorpayKeyId: string;
   settings: SystemSettings;
+  pendingUPIVerification?: {
+    id: number;
+    amount: number;
+    rentMonth: string;
+    utr: string | null;
+  } | null;
 }
 
 // ==================== Payments ====================
@@ -122,9 +128,16 @@ export interface Payment {
   lateFee: number;
   paidAt: string | null;
   createdAt: string;
+  // UPI verification fields
+  utr?: string | null;
+  verificationStatus?: "pending" | "verified" | "rejected" | null;
+  utrSubmittedAt?: string | null;
+  verifiedBy?: number | null;
+  verifiedAt?: string | null;
+  rejectionReason?: string | null;
 }
 
-export type PaymentType = "rent" | "deposit" | "manual";
+export type PaymentType = "rent" | "deposit" | "manual" | "upi";
 export type PaymentStatus = "pending" | "completed" | "failed";
 
 export interface PaymentReceipt {
@@ -198,6 +211,7 @@ export interface TenantDetail {
   deposit: Deposit | null;
   payments: Payment[];
   complaints: Complaint[];
+  pendingUPIVerifications: Payment[];
 }
 
 export interface TenantOption {

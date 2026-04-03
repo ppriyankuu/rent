@@ -10,6 +10,7 @@ import { TenantProfileCard } from "./page-comps/TenantProfileCard";
 import { BookingInfoCard } from "./page-comps/BookingInfoCard";
 import { DepositInfoCard } from "./page-comps/DepositInfoCard";
 import { PaymentHistoryCard } from "./page-comps/PaymentHistoryCard";
+import { PendingUPIVerificationsCard } from "./page-comps/PendingUPIVerificationsCard";
 import { ComplaintsCard } from "./page-comps/ComplaintsCard";
 import { UpdateRentModal } from "./page-comps/UpdateRentModal";
 import { EndBookingModal } from "./page-comps/EndBookingModal";
@@ -193,6 +194,11 @@ export default function TenantDetailPage() {
           onDeleteDeduction={(id) => setDeleteConfirmModal({ isOpen: true, deductionId: id })}
         />
       )}
+
+      <PendingUPIVerificationsCard
+        payments={tenantDetail.pendingUPIVerifications || []}
+        onVerified={() => refreshTenantDetail(tenantId)}
+      />
 
       <PaymentHistoryCard payments={payments} />
 

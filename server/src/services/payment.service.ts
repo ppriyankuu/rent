@@ -1,7 +1,8 @@
-import { eq, and, desc, or } from "drizzle-orm";
+import { eq, and, desc, or, isNull } from "drizzle-orm";
 import type { DrizzleDb } from "../db/client";
 import { payments, bookings, users, beds } from "../db/schema";
 import { nowISO, generateReceiptNumber, verifyRazorpaySignature } from "../utils";
+import { generateUPILink } from "../utils/upi";
 import { getSetting } from "./settings.service";
 import { createRazorpayOrder } from "./razorpay.service";
 import type { Payment } from "../db/schema";
@@ -10,27 +11,32 @@ import type { Payment } from "../db/schema";
 
 export interface InitiatePaymentResult {
     paymentId: number;
-    razorpayOrderId: string;
-    razorpayKeyId: string;
+    upiLink: string;
     amount: number;
     currency: string;
     tenantName: string;
     tenantEmail: string;
+    rentMonth: string;
+}
+
+export interface SubmitUTRResult {
+    paymentId: number;
+    utr: string;
 }
 
 // ─── Service Functions ────────────────────────────────────────
 
 /**
  * Step 1: Initiate online rent payment.
- * Creates a pending payment record + Razorpay order.
- * Returns info needed by frontend to open Razorpay checkout.
+ * Creates a pending UPI payment record + generates UPI link.
+ * Returns info needed by frontend to show UPI checkout modal.
  */
 export async function initiateRentPayment(
     db: DrizzleDb,
     tenantId: number,
     rentMonth: string,
-    razorpayKeyId: string,
-    razorpayKeySecret: string
+    upiId: string,
+    upiPayeeName: string
 ): Promise<InitiatePaymentResult> {
     // Get active booking for this tenant
     const booking = await db
@@ -49,7 +55,7 @@ export async function initiateRentPayment(
         throw new Error(`Cannot pay rent for ${rentMonth}: tenant moved in on ${moveInMonth}`);
     }
 
-    // Get tenant details (for Razorpay notes)
+    // Get tenant details
     const tenant = await db
         .select()
         .from(users)
@@ -59,7 +65,7 @@ export async function initiateRentPayment(
     if (!tenant) throw new Error("Tenant not found");
     if (tenant.isActive === false) throw new Error("Your account has been deactivated. Please contact the administrator.");
 
-    // Check for duplicate payment for same month and booking
+    // Check for duplicate payment for same month and booking (completed)
     const existing = await db
         .select()
         .from(payments)
@@ -74,6 +80,43 @@ export async function initiateRentPayment(
         .get();
 
     if (existing) throw new Error(`Rent for ${rentMonth} already paid`);
+
+    // Check for existing pending UPI payment for same month — return it instead of creating a duplicate
+    const existingPending = await db
+        .select()
+        .from(payments)
+        .where(
+            and(
+                eq(payments.tenantId, tenantId),
+                eq(payments.bookingId, booking.id),
+                eq(payments.rentMonth, rentMonth),
+                eq(payments.status, "pending"),
+                eq(payments.type, "upi")
+            )
+        )
+        .orderBy(desc(payments.createdAt))
+        .get();
+
+    if (existingPending) {
+        // Return existing pending payment with its UPI link
+        const upiLink = generateUPILink({
+            upiId,
+            name: upiPayeeName,
+            amount: existingPending.amount,
+            note: `Rent ${rentMonth}`,
+            transactionRef: `pay_${existingPending.id}`,
+        });
+
+        return {
+            paymentId: existingPending.id,
+            upiLink,
+            amount: existingPending.amount,
+            currency: "INR",
+            tenantName: tenant.name,
+            tenantEmail: tenant.email,
+            rentMonth,
+        };
+    }
 
     // Check if this is the first rent payment for this booking
     const previousPayments = await db
@@ -91,59 +134,36 @@ export async function initiateRentPayment(
     const lateFeeRaw = await getSetting(db, "late_fee_amount");
     const rentDueStartDay = parseInt(await getSetting(db, "rent_due_start_day"), 10);
     const rentDueEndDay = parseInt(await getSetting(db, "rent_due_end_day"), 10);
-    // Window length: e.g. 1st–5th = 5 days, 3rd–8th = 6 days
     const windowLength = rentDueEndDay - rentDueStartDay + 1;
     const [rentYear, rentMonthNum] = rentMonth.split("-").map(Number);
     let rentDueDate: Date;
 
     if (!previousPayments) {
-        // First payment: grace period = windowLength days from move-in date.
-        // e.g. move-in on 14th, window is 1st–5th (5 days) → due by 19th
         const moveInDateObj = new Date(booking.moveInDate);
         const moveInDay = moveInDateObj.getUTCDate();
         rentDueDate = new Date(Date.UTC(rentYear, rentMonthNum - 1, moveInDay + windowLength));
     } else {
-        // Subsequent payments: strictly due by the end day of the configured window
-        // e.g. if window is 1st–5th, rent is due by the 5th of the month
         rentDueDate = new Date(Date.UTC(rentYear, rentMonthNum - 1, rentDueEndDay));
     }
 
     const dateNow = new Date();
     const todayUTC = new Date(Date.UTC(dateNow.getUTCFullYear(), dateNow.getUTCMonth(), dateNow.getUTCDate()));
-
-    // Late fee applies if today is strictly past the calculated due date
     const isLate = todayUTC > rentDueDate;
     const lateFee = isLate ? Math.round(parseFloat(lateFeeRaw)) : 0;
 
     let rentToPay = booking.monthlyRent;
     if (!previousPayments) {
-        // First payment: calculate prorated rent based on moveInDate
-        // Parse as UTC components to avoid timezone-related off-by-one errors
         const [miYear, miMonth, miDay] = booking.moveInDate.split("-").map(Number) as [number, number, number];
-
-        // Ensure the payment is for the moveInDate's month
         if (miYear === rentYear && miMonth === rentMonthNum) {
             const daysInMonth = new Date(Date.UTC(miYear, miMonth, 0)).getDate();
-            const daysRemaining = daysInMonth - miDay + 1; // inclusive of move-in day
+            const daysRemaining = daysInMonth - miDay + 1;
             rentToPay = Math.round((booking.monthlyRent / daysInMonth) * daysRemaining);
         }
     }
 
     const totalAmount = rentToPay + lateFee;
 
-    // Create Razorpay order
-    const receiptNumber = generateReceiptNumber();
-    const order = await createRazorpayOrder(razorpayKeyId, razorpayKeySecret, {
-        amount: totalAmount,
-        receipt: receiptNumber,
-        notes: {
-            tenantName: tenant.name,
-            tenantEmail: tenant.email,
-            rentMonth,
-        },
-    });
-
-    // Create pending payment record in DB
+    // Create pending payment record in DB (type: "upi")
     const now = nowISO();
     const result = await db
         .insert(payments)
@@ -151,9 +171,8 @@ export async function initiateRentPayment(
             tenantId,
             bookingId: booking.id,
             amount: totalAmount,
-            type: "online",
+            type: "upi",
             status: "pending",
-            razorpayOrderId: order.id,
             rentMonth,
             lateFee,
             createdAt: now,
@@ -163,14 +182,23 @@ export async function initiateRentPayment(
 
     if (!result) throw new Error("Failed to create payment record");
 
+    // Generate UPI link
+    const upiLink = generateUPILink({
+        upiId,
+        name: upiPayeeName,
+        amount: totalAmount,
+        note: `Rent ${rentMonth}`,
+        transactionRef: `pay_${result.id}`,
+    });
+
     return {
         paymentId: result.id,
-        razorpayOrderId: order.id,
-        razorpayKeyId,
+        upiLink,
         amount: totalAmount,
         currency: "INR",
         tenantName: tenant.name,
         tenantEmail: tenant.email,
+        rentMonth,
     };
 }
 
@@ -349,6 +377,175 @@ export async function getTenantPayments(
     }
 
     return query.all();
+}
+
+/**
+ * Tenant submits UTR after making UPI payment.
+ * Validates UTR uniqueness and marks payment as pending verification.
+ */
+export async function submitUTRForVerification(
+    db: DrizzleDb,
+    tenantId: number,
+    utr: string
+): Promise<SubmitUTRResult> {
+    const normalizedUtr = utr.toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+    if (normalizedUtr.length !== 12) {
+        throw new Error("UTR must be exactly 12 alphanumeric characters");
+    }
+
+    // Find the tenant's most recent pending UPI payment without a UTR
+    const payment = await db
+        .select()
+        .from(payments)
+        .where(
+            and(
+                eq(payments.tenantId, tenantId),
+                eq(payments.status, "pending"),
+                eq(payments.type, "upi"),
+                isNull(payments.utr)
+            )
+        )
+        .orderBy(desc(payments.createdAt))
+        .get();
+
+    if (!payment) {
+        throw new Error("No pending UPI payment found for your account");
+    }
+
+    // Check UTR uniqueness
+    const existingUtr = await db
+        .select({ id: payments.id })
+        .from(payments)
+        .where(eq(payments.utr, normalizedUtr))
+        .get();
+
+    if (existingUtr) {
+        throw new Error("This Transaction ID has already been used. Please check and try again.");
+    }
+
+    // Update payment with UTR
+    const now = nowISO();
+    const updated = await db
+        .update(payments)
+        .set({
+            utr: normalizedUtr,
+            verificationStatus: "pending",
+            utrSubmittedAt: now,
+        })
+        .where(eq(payments.id, payment.id))
+        .returning()
+        .get();
+
+    if (!updated) throw new Error("Failed to submit UTR");
+
+    return { paymentId: payment.id, utr: normalizedUtr };
+}
+
+/**
+ * Admin confirms or rejects a UPI payment.
+ * If verified: marks payment as completed, updates booking.
+ * If rejected: marks as failed, sets rejection reason.
+ */
+export async function adminVerifyUPIPayment(
+    db: DrizzleDb,
+    paymentId: number,
+    adminId: number,
+    action: "verify" | "reject",
+    rejectionReason?: string
+): Promise<Payment> {
+    const payment = await db
+        .select()
+        .from(payments)
+        .where(
+            and(
+                eq(payments.id, paymentId),
+                eq(payments.type, "upi"),
+                eq(payments.verificationStatus, "pending")
+            )
+        )
+        .get();
+
+    if (!payment) {
+        throw new Error("Payment not found or not pending verification");
+    }
+
+    const now = nowISO();
+
+    if (action === "verify") {
+        const updated = await db
+            .update(payments)
+            .set({
+                status: "completed",
+                verificationStatus: "verified",
+                verifiedBy: adminId,
+                verifiedAt: now,
+                paidAt: now,
+            })
+            .where(eq(payments.id, paymentId))
+            .returning()
+            .get();
+
+        if (!updated) throw new Error("Failed to verify payment");
+
+        // Update booking
+        const paymentBooking = await db
+            .select()
+            .from(bookings)
+            .where(eq(bookings.id, payment.bookingId))
+            .get();
+
+        if (paymentBooking) {
+            const nextMonth = getNextMonth(payment.rentMonth);
+            await db
+                .update(bookings)
+                .set({ nextRentDueDate: `${nextMonth}-01`, status: "active" })
+                .where(eq(bookings.id, payment.bookingId));
+
+            await db
+                .update(beds)
+                .set({ status: "occupied" })
+                .where(eq(beds.id, paymentBooking.bedId));
+        }
+
+        return updated;
+    } else {
+        const updated = await db
+            .update(payments)
+            .set({
+                status: "failed",
+                verificationStatus: "rejected",
+                verifiedBy: adminId,
+                verifiedAt: now,
+                rejectionReason: rejectionReason || "Payment could not be verified",
+            })
+            .where(eq(payments.id, paymentId))
+            .returning()
+            .get();
+
+        if (!updated) throw new Error("Failed to reject payment");
+        return updated;
+    }
+}
+
+/**
+ * Get all UPI payments awaiting admin verification.
+ * Used by admin dashboard.
+ */
+export async function getPendingVerificationPayments(
+    db: DrizzleDb
+): Promise<Payment[]> {
+    return db
+        .select()
+        .from(payments)
+        .where(
+            and(
+                eq(payments.type, "upi"),
+                eq(payments.verificationStatus, "pending")
+            )
+        )
+        .orderBy(desc(payments.utrSubmittedAt))
+        .all();
 }
 
 // ─── Helpers ──────────────────────────────────────────────────

@@ -203,9 +203,8 @@ adminRoute.get("/tenants/:id", async (c) => {
 
     if (!tenantWithBooking) return c.json(err("Tenant not found"), 404);
 
-    // Only 2 more queries needed: payments and complaints (in parallel)
-    // Limited to most recent 50 entries each to prevent memory issues
-    const [paymentHistory, tenantComplaints] = await Promise.all([
+    // Only 3 more queries needed: payments, complaints, pending UPI verifications (in parallel)
+    const [paymentHistory, tenantComplaints, pendingUPIVerifications] = await Promise.all([
         getTenantPayments(db, tenantId, 50),
         db
             .select()
@@ -213,6 +212,18 @@ adminRoute.get("/tenants/:id", async (c) => {
             .where(eq(complaints.tenantId, tenantId))
             .orderBy(desc(complaints.createdAt))
             .limit(50)
+            .all(),
+        db
+            .select()
+            .from(payments)
+            .where(
+                and(
+                    eq(payments.tenantId, tenantId),
+                    eq(payments.type, "upi"),
+                    eq(payments.verificationStatus, "pending")
+                )
+            )
+            .orderBy(desc(payments.utrSubmittedAt))
             .all(),
     ]);
 
@@ -269,6 +280,7 @@ adminRoute.get("/tenants/:id", async (c) => {
             deposit,
             payments: paymentHistory,
             complaints: tenantComplaints,
+            pendingUPIVerifications,
         })
     );
 });

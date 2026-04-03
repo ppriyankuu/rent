@@ -13,4 +13,12 @@ export interface Env {
 
     // CORS configuration (comma-separated list of allowed origins)
     ALLOWED_ORIGINS?: string;
+
+    // Manual UPI Payment (for rent payments)
+    UPI_ID: string;           // e.g., "yourname@oksbi"
+    UPI_PAYEE_NAME: string;   // e.g., "Priyankuu"
+
+    // Telegram notifications
+    TELEGRAM_BOT_TOKEN: string;
+    TELEGRAM_CHAT_ID: string;
 }

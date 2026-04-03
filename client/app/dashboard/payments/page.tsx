@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CreditCard, Receipt, Download } from "lucide-react";
+import { CreditCard, Receipt, Download, Clock } from "lucide-react";
+import Link from "next/link";
 import api from "@/lib/api";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -60,7 +61,15 @@ export default function PaymentsPage() {
 
   return (
     <div>
-      <PageHeader title="Payment History" icon={CreditCard} />
+      <PageHeader
+        title="Payment History"
+        icon={CreditCard}
+        actions={
+          <Link href="/dashboard/payments/verify" className="btn btn-outline btn-sm">
+            <Clock className="h-4 w-4" /> Verify Payment
+          </Link>
+        }
+      />
 
       {payments.length === 0 ? (
         <EmptyState
@@ -98,6 +107,12 @@ export default function PaymentsPage() {
                   </td>
                   <td>
                     <StatusBadge status={p.status} />
+                    {p.type === "upi" && p.verificationStatus === "pending" && (
+                      <span className="badge badge-warning badge-xs ml-1">Awaiting</span>
+                    )}
+                    {p.type === "upi" && p.verificationStatus === "rejected" && (
+                      <span className="badge badge-error badge-xs ml-1">Rejected</span>
+                    )}
                   </td>
                   <td className="text-sm">
                     {p.paidAt ? formatDate(p.paidAt) : "—"}

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CreditCard, Plus, Download } from "lucide-react";
+import { CreditCard, Plus, Download, Clock } from "lucide-react";
+import Link from "next/link";
 import api from "@/lib/api";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -111,6 +112,9 @@ export default function AdminPaymentsPage() {
         icon={CreditCard}
         actions={
           <>
+            <Link href="/admin/payments/pending" className="btn btn-warning btn-sm">
+              <Clock className="h-4 w-4" /> Pending Verifications
+            </Link>
             <button className="btn btn-outline btn-sm" onClick={() => handleExport("payments")}>
               <Download className="h-4 w-4" /> Export Payments
             </button>
@@ -164,6 +168,7 @@ export default function AdminPaymentsPage() {
                     <th>Month</th>
                     <th>Amount</th>
                     <th>Late Fee</th>
+                    <th>UTR</th>
                     <th>Type</th>
                     <th>Status</th>
                     <th>Paid On</th>
@@ -188,8 +193,23 @@ export default function AdminPaymentsPage() {
                       <td className="font-medium">{p.rentMonth}</td>
                       <td>₹{p.amount.toLocaleString()}</td>
                       <td>{p.lateFee > 0 ? <span className="text-error">₹{p.lateFee}</span> : "—"}</td>
+                      <td>
+                        {p.utr ? (
+                          <span className="font-mono text-xs">{p.utr}</span>
+                        ) : (
+                          <span className="text-base-content/30">—</span>
+                        )}
+                      </td>
                       <td><span className="badge badge-outline badge-xs">{p.type}</span></td>
-                      <td><StatusBadge status={p.status} /></td>
+                      <td>
+                        <StatusBadge status={p.status} />
+                        {p.type === "upi" && p.verificationStatus === "pending" && (
+                          <span className="badge badge-warning badge-sm ml-1">Awaiting</span>
+                        )}
+                        {p.type === "upi" && p.verificationStatus === "rejected" && (
+                          <span className="badge badge-error badge-sm ml-1">Rejected</span>
+                        )}
+                      </td>
                       <td className="text-sm">{p.paidAt ? formatDate(p.paidAt) : "—"}</td>
                     </tr>
                   ))}

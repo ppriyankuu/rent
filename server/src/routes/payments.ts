@@ -1,16 +1,21 @@
 /**
- * POST /api/payments/initiate         → tenant: create Razorpay order for rent
- * POST /api/payments/verify           → tenant: verify payment + mark as complete
+ * POST /api/payments/initiate         → tenant: create UPI payment for rent
+ * POST /api/payments/submit-utr       → tenant: submit UTR after UPI payment
  * GET  /api/payments/my               → tenant: get payment history
+ * GET  /api/payments/my/pending       → tenant: get current pending UPI payment
  * GET  /api/payments/my/:id/receipt   → tenant: get receipt data for a payment
  * POST /api/payments/manual           → admin: record manual (cash/UPI) payment
  * GET  /api/payments                  → admin: list all payments
  * GET  /api/payments/tenant/:tenantId → admin: get payments for a specific tenant
+ * POST /api/payments/admin/verify     → admin: verify/reject UPI payment
+ * GET  /api/payments/admin/pending    → admin: list pending UPI verifications
+ * POST /api/payments/webhooks/telegram → telegram: handle callback queries
+ * POST /api/payments/webhook          → razorpay: webhook (for deposits)
  */
 
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { eq, and, desc, count, like, or } from "drizzle-orm";
+import { eq, and, desc, count, like, or, isNull, ne } from "drizzle-orm";
 import type { Env } from "../types/env";
 import type { JwtPayload } from "../types/api";
 import { ok, err } from "../types/api";
@@ -18,7 +23,8 @@ import { createDb } from "../db/client";
 import { payments, bookings, users, beds, rooms } from "../db/schema";
 import {
     initiatePaymentSchema,
-    verifyPaymentSchema,
+    submitUtrSchema,
+    adminVerifyPaymentSchema,
     manualPaymentSchema,
     paginationSchema,
     type PaginatedResponse,
@@ -30,7 +36,12 @@ import {
     recordManualPayment,
     getTenantPayments,
     handleWebhookPayment,
+    submitUTRForVerification,
+    adminVerifyUPIPayment,
+    getPendingVerificationPayments,
 } from "../services/payment.service";
+import { sendUTRNotification } from "../services/telegram.service";
+import { nowISO } from "../utils";
 
 type Variables = { user: JwtPayload };
 
@@ -50,8 +61,8 @@ paymentsRoute.post(
                 createDb(c.env.rent),
                 tenantId,
                 rentMonth,
-                c.env.RAZORPAY_KEY_ID,
-                c.env.RAZORPAY_KEY_SECRET
+                c.env.UPI_ID,
+                c.env.UPI_PAYEE_NAME
             );
             return c.json(ok(result), 201);
         } catch (e) {
@@ -61,28 +72,78 @@ paymentsRoute.post(
     }
 );
 
-// ─── POST /api/payments/verify — TENANT ──────────────────────
+// ─── POST /api/payments/submit-utr — TENANT ──────────────────
 paymentsRoute.post(
-    "/verify",
+    "/submit-utr",
     requireAuth(),
-    zValidator("json", verifyPaymentSchema),
+    zValidator("json", submitUtrSchema),
     async (c) => {
         const { sub: tenantId } = c.get("user");
-        const { razorpayOrderId, razorpayPaymentId, razorpaySignature } =
-            c.req.valid("json");
+        const { utr } = c.req.valid("json");
+        const db = createDb(c.env.rent);
 
         try {
-            const payment = await verifyAndCompletePayment(
-                createDb(c.env.rent),
-                tenantId,
-                razorpayOrderId,
-                razorpayPaymentId,
-                razorpaySignature,
-                c.env.RAZORPAY_KEY_SECRET
-            );
-            return c.json(ok({ message: "Payment successful!", payment }));
+            const result = await submitUTRForVerification(db, tenantId, utr);
+
+            // Get payment details for Telegram notification
+            const payment = await db
+                .select({
+                    id: payments.id,
+                    amount: payments.amount,
+                    lateFee: payments.lateFee,
+                    rentMonth: payments.rentMonth,
+                    tenantId: payments.tenantId,
+                    bookingId: payments.bookingId,
+                })
+                .from(payments)
+                .where(eq(payments.id, result.paymentId))
+                .get();
+
+            if (payment) {
+                // Get tenant details
+                const tenant = await db
+                    .select({ name: users.name, email: users.email })
+                    .from(users)
+                    .where(eq(users.id, payment.tenantId))
+                    .get();
+
+                const booking = await db
+                    .select()
+                    .from(bookings)
+                    .where(eq(bookings.id, payment.bookingId))
+                    .get();
+
+                let roomName: string | undefined;
+                let bedName: string | undefined;
+                if (booking) {
+                    const bed = await db.select().from(beds).where(eq(beds.id, booking.bedId)).get();
+                    if (bed) {
+                        bedName = bed.name;
+                        const room = await db.select().from(rooms).where(eq(rooms.id, bed.roomId)).get();
+                        if (room) roomName = room.name;
+                    }
+                }
+
+                // Send Telegram notification (non-blocking)
+                if (tenant) {
+                    sendUTRNotification({
+                        tenantName: tenant.name,
+                        tenantEmail: tenant.email,
+                        roomName,
+                        bedName,
+                        amount: payment.amount,
+                        rentMonth: payment.rentMonth,
+                        lateFee: payment.lateFee,
+                        utr: result.utr,
+                        paymentId: result.paymentId,
+                        submittedAt: nowISO(),
+                    }).catch((error) => console.error("Telegram notification failed:", error));
+                }
+            }
+
+            return c.json(ok({ message: "UTR submitted successfully. Awaiting verification.", ...result }), 201);
         } catch (e) {
-            const message = e instanceof Error ? e.message : "Payment verification failed";
+            const message = e instanceof Error ? e.message : "Failed to submit UTR";
             return c.json(err(message), 400);
         }
     }
@@ -97,9 +158,48 @@ paymentsRoute.get("/my", requireAuth(), async (c) => {
     return c.json(ok(history));
 });
 
+// ─── GET /api/payments/my/pending — TENANT ───────────────────
+paymentsRoute.get("/my/pending", requireAuth(), async (c) => {
+    const { sub: tenantId } = c.get("user");
+    const db = createDb(c.env.rent);
+
+    // Get the single most recent UPI payment for this tenant
+    const latestPayment = await db
+        .select()
+        .from(payments)
+        .where(
+            and(
+                eq(payments.tenantId, tenantId),
+                eq(payments.type, "upi")
+            )
+        )
+        .orderBy(desc(payments.createdAt))
+        .get();
+
+    if (!latestPayment) {
+        return c.json(ok(null));
+    }
+
+    // If the latest payment is completed, tenant is all caught up
+    if (latestPayment.status === "completed") {
+        return c.json(ok(null));
+    }
+
+    // Return if it needs tenant attention:
+    // - Pending, no UTR yet (needs to pay + submit)
+    // - Pending, UTR submitted (awaiting admin)
+    // - Rejected (needs to see reason and re-initiate)
+    if (
+        latestPayment.status === "pending" ||
+        latestPayment.verificationStatus === "rejected"
+    ) {
+        return c.json(ok(latestPayment));
+    }
+
+    return c.json(ok(null));
+});
+
 // ─── GET /api/payments/my/:id/receipt — TENANT ───────────────
-// Returns structured data for receipt generation
-// The actual PDF is generated client-side or via a separate endpoint
 paymentsRoute.get("/my/:id/receipt", requireAuth(), async (c) => {
     const { sub: tenantId } = c.get("user");
     const paymentId = parseInt(c.req.param("id"), 10);
@@ -108,7 +208,6 @@ paymentsRoute.get("/my/:id/receipt", requireAuth(), async (c) => {
 
     const db = createDb(c.env.rent);
 
-    // Get payment (ensure it belongs to this tenant)
     const payment = await db
         .select()
         .from(payments)
@@ -117,14 +216,12 @@ paymentsRoute.get("/my/:id/receipt", requireAuth(), async (c) => {
 
     if (!payment) return c.json(err("Payment not found"), 404);
 
-    // Get tenant info
     const tenant = await db
         .select({ id: users.id, name: users.name, email: users.email, phone: users.phone })
         .from(users)
         .where(eq(users.id, tenantId))
         .get();
 
-    // Get booking → bed → room for the receipt
     const booking = await db
         .select()
         .from(bookings)
@@ -139,8 +236,6 @@ paymentsRoute.get("/my/:id/receipt", requireAuth(), async (c) => {
         ? await db.select().from(rooms).where(eq(rooms.id, bed.roomId)).get()
         : null;
 
-    // Return structured receipt data
-    // Frontend uses this to render / generate PDF
     return c.json(
         ok({
             receiptNumber: `RCP-${payment.id.toString().padStart(6, "0")}`,
@@ -185,17 +280,14 @@ paymentsRoute.post(
 );
 
 // ─── GET /api/payments — ADMIN ────────────────────────────────
-// Supports pagination: ?page=1&limit=20&search=john
 paymentsRoute.get("/", requireAdmin(), zValidator("query", paginationSchema), async (c) => {
     const { page, limit, search } = c.req.valid("query");
     const db = createDb(c.env.rent);
     const offset = (page - 1) * limit;
 
-    // Get total count
     const totalResult = await db.select({ count: count() }).from(payments).get();
     const total = totalResult?.count ?? 0;
 
-    // Get paginated payments with tenant info
     const paymentList = await db
         .select({
             id: payments.id,
@@ -208,6 +300,8 @@ paymentsRoute.get("/", requireAdmin(), zValidator("query", paginationSchema), as
             rentMonth: payments.rentMonth,
             type: payments.type,
             status: payments.status,
+            utr: payments.utr,
+            verificationStatus: payments.verificationStatus,
             razorpayOrderId: payments.razorpayOrderId,
             razorpayPaymentId: payments.razorpayPaymentId,
             notes: payments.notes,
@@ -254,9 +348,128 @@ paymentsRoute.get("/tenant/:tenantId", requireAdmin(), async (c) => {
     return c.json(ok(history));
 });
 
+// ─── POST /api/payments/admin/verify — ADMIN ─────────────────
+paymentsRoute.post(
+    "/admin/verify",
+    requireAdmin(),
+    zValidator("json", adminVerifyPaymentSchema),
+    async (c) => {
+        const { sub: adminId } = c.get("user");
+        const body = c.req.valid("json");
+
+        try {
+            const payment = await adminVerifyUPIPayment(
+                createDb(c.env.rent),
+                body.paymentId,
+                adminId,
+                body.action,
+                body.rejectionReason
+            );
+            return c.json(ok({ message: `Payment ${body.action}ed successfully`, payment }));
+        } catch (e) {
+            const message = e instanceof Error ? e.message : `Failed to ${body.action} payment`;
+            return c.json(err(message), 400);
+        }
+    }
+);
+
+// ─── GET /api/payments/admin/pending — ADMIN ─────────────────
+paymentsRoute.get("/admin/pending", requireAdmin(), async (c) => {
+    const db = createDb(c.env.rent);
+    const pending = await getPendingVerificationPayments(db);
+
+    const enriched = await Promise.all(
+        pending.map(async (p) => {
+            const tenant = await db
+                .select({ name: users.name, email: users.email })
+                .from(users)
+                .where(eq(users.id, p.tenantId))
+                .get();
+            const booking = await db
+                .select()
+                .from(bookings)
+                .where(eq(bookings.id, p.bookingId))
+                .get();
+            let roomName: string | undefined;
+            let bedName: string | undefined;
+            if (booking) {
+                const bed = await db.select().from(beds).where(eq(beds.id, booking.bedId)).get();
+                if (bed) {
+                    bedName = bed.name;
+                    const room = await db.select().from(rooms).where(eq(rooms.id, bed.roomId)).get();
+                    if (room) roomName = room.name;
+                }
+            }
+            return { ...p, tenantName: tenant?.name, tenantEmail: tenant?.email, roomName, bedName };
+        })
+    );
+
+    return c.json(ok(enriched));
+});
+
+// ─── POST /api/payments/webhooks/telegram — TELEGRAM ─────────
+paymentsRoute.post("/webhooks/telegram", async (c) => {
+    try {
+        const body = await c.req.json();
+
+        if (body.callback_query) {
+            const callbackData = body.callback_query.data;
+            const chatId = body.callback_query.message.chat.id;
+            const messageId = body.callback_query.message.message_id;
+            const db = createDb(c.env.rent);
+
+            if (callbackData?.startsWith("verify_payment:")) {
+                const paymentId = parseInt(callbackData.split(":")[1], 10);
+                if (isNaN(paymentId)) {
+                    return c.json(err("Invalid payment ID"), 400);
+                }
+
+                await adminVerifyUPIPayment(db, paymentId, 0, "verify");
+
+                // Edit message to show result
+                await fetch(`https://api.telegram.org/bot${c.env.TELEGRAM_BOT_TOKEN}/editMessageText`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        chat_id: chatId,
+                        message_id: messageId,
+                        text: `✅ Payment #${paymentId} has been confirmed.`,
+                    }),
+                });
+
+                return c.json(ok({ message: "Payment verified via Telegram" }));
+            } else if (callbackData?.startsWith("reject_payment:")) {
+                const paymentId = parseInt(callbackData.split(":")[1], 10);
+                if (isNaN(paymentId)) {
+                    return c.json(err("Invalid payment ID"), 400);
+                }
+
+                await adminVerifyUPIPayment(db, paymentId, 0, "reject", "Rejected via Telegram");
+
+                await fetch(`https://api.telegram.org/bot${c.env.TELEGRAM_BOT_TOKEN}/editMessageText`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        chat_id: chatId,
+                        message_id: messageId,
+                        text: `❌ Payment #${paymentId} has been rejected.`,
+                    }),
+                });
+
+                return c.json(ok({ message: "Payment rejected via Telegram" }));
+            }
+
+            return c.json(ok({ message: "Unknown callback action" }));
+        }
+
+        return c.json(ok({ message: "Webhook received" }));
+    } catch (e) {
+        console.error("Telegram webhook error:", e);
+        return c.json(err("Webhook processing error"), 500);
+    }
+});
+
 // ─── POST /api/payments/webhook — RAZORPAY WEBHOOK ────────────
-// Razorpay sends payment status updates to this endpoint
-// This is a backup verification in case client-side verification fails
 paymentsRoute.post("/webhook", async (c) => {
     const signature = c.req.header("X-Razorpay-Signature");
     if (!signature) {

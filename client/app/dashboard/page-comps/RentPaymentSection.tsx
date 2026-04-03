@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2, CreditCard, Shield } from "lucide-react";
+import { CheckCircle2, CreditCard, Shield, Clock } from "lucide-react";
 import type { BookingData } from "@/lib/types";
 
 interface RentPaymentSectionProps {
@@ -31,6 +31,30 @@ export function RentPaymentSection({
 
   return (
     <>
+      {/* Pending Verification State */}
+      {bookingData.pendingUPIVerification && (
+        <div className="card bg-warning/10 border border-warning/30 mb-6">
+          <div className="card-body flex flex-row items-center gap-4 py-4">
+            <Clock className="h-6 w-6 text-warning shrink-0" />
+            <div className="flex-1">
+              <h3 className="font-bold text-warning-content">Payment Under Verification</h3>
+              <p className="text-sm text-base-content/60">
+                Your payment of ₹{bookingData.pendingUPIVerification.amount.toLocaleString()} for{" "}
+                {bookingData.pendingUPIVerification.rentMonth} is being verified.
+                {bookingData.pendingUPIVerification.utr && (
+                  <span className="block mt-1 font-mono text-xs">
+                    UTR: {bookingData.pendingUPIVerification.utr}
+                  </span>
+                )}
+              </p>
+            </div>
+            <Link href="/dashboard/payments/verify" className="btn btn-warning btn-sm">
+              Check Status
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Rent Paid Confirmation */}
       {isRentPaid && (booking.status === "active" || booking.status === "deposit_paid") && (
         <div className="card bg-success/10 border border-success/20 mb-6">
@@ -48,7 +72,7 @@ export function RentPaymentSection({
       )}
 
       {/* Pay Rent Button */}
-      {isActive && (booking.status === "active" || booking.status === "deposit_paid") && !isRentPaid && (
+      {isActive && (booking.status === "active" || booking.status === "deposit_paid") && !isRentPaid && !bookingData.pendingUPIVerification && (
         <div className="card bg-primary/5 border border-primary/20">
           <div className="card-body flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
@@ -56,7 +80,7 @@ export function RentPaymentSection({
                 <CreditCard className="h-5 w-5" /> Pay Monthly Rent
               </h3>
               <p className="text-sm text-base-content/60">
-                Pay your rent for the current month online via Razorpay
+                Pay your rent for the current month via UPI
               </p>
             </div>
             <button
