@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Clock, CheckCircle, XCircle } from "lucide-react";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Modal } from "@/components/Modal";
@@ -16,12 +16,19 @@ interface PendingUPIVerificationsCardProps {
 
 /**
  * Shows pending UPI verifications for a tenant with verify/reject actions.
+ * Updates the list in-place after an action (no full page refresh).
  */
 export function PendingUPIVerificationsCard({ payments, onVerified }: PendingUPIVerificationsCardProps) {
+  const [localPayments, setLocalPayments] = useState<Payment[]>(payments);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [processing, setProcessing] = useState(false);
+
+  // Sync local state when parent payments prop changes (e.g., after full refetch)
+  useEffect(() => {
+    setLocalPayments(payments);
+  }, [payments]);
 
   const handleVerify = async (paymentId: number) => {
     setProcessing(true);
@@ -31,6 +38,11 @@ export function PendingUPIVerificationsCard({ payments, onVerified }: PendingUPI
         action: "verify",
       });
       toast.success("Payment verified!");
+
+      // Remove the verified payment from the local list (in-place update)
+      setLocalPayments((prev) => prev.filter((p) => p.id !== paymentId));
+
+      // Notify parent to sync state (optional, no full refetch needed)
       onVerified();
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, "Failed to verify payment"));
@@ -51,9 +63,16 @@ export function PendingUPIVerificationsCard({ payments, onVerified }: PendingUPI
         rejectionReason: rejectionReason || undefined,
       });
       toast.success("Payment rejected");
+
+      const rejectedId = selectedPayment.id;
       setRejectModalOpen(false);
       setSelectedPayment(null);
       setRejectionReason("");
+
+      // Remove the rejected payment from the local list (in-place update)
+      setLocalPayments((prev) => prev.filter((p) => p.id !== rejectedId));
+
+      // Notify parent to sync state (optional, no full refetch needed)
       onVerified();
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, "Failed to reject payment"));
@@ -68,14 +87,14 @@ export function PendingUPIVerificationsCard({ payments, onVerified }: PendingUPI
     setRejectModalOpen(true);
   };
 
-  if (payments.length === 0) return null;
+  if (localPayments.length === 0) return null;
 
   return (
     <div className="card bg-base-100 shadow-sm border border-warning/30 mb-6">
       <div className="card-body p-5">
         <h2 className="font-bold text-lg flex items-center gap-2 mb-3 text-warning-content">
           <Clock className="h-5 w-5" />
-          Pending UPI Verifications ({payments.length})
+          Pending UPI Verifications ({localPayments.length})
         </h2>
 
         <div className="overflow-x-auto">
@@ -93,7 +112,7 @@ export function PendingUPIVerificationsCard({ payments, onVerified }: PendingUPI
               </tr>
             </thead>
             <tbody>
-              {payments.map((p) => (
+              {localPayments.map((p) => (
                 <tr key={p.id}>
                   <td>#{p.id}</td>
                   <td className="font-medium">{p.rentMonth}</td>

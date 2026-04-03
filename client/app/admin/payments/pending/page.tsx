@@ -56,7 +56,9 @@ export default function AdminPendingVerificationsPage() {
                 action: "verify",
             });
             toast.success("Payment verified!");
-            fetchPending();
+
+            // Remove the verified payment from local state (in-place update)
+            setPayments((prev) => prev.filter((p) => p.id !== paymentId));
         } catch (err: unknown) {
             toast.error(getErrorMessage(err, "Failed to verify payment"));
         } finally {
@@ -76,10 +78,14 @@ export default function AdminPendingVerificationsPage() {
                 rejectionReason: rejectionReason || undefined,
             });
             toast.success("Payment rejected");
+
+            const rejectedId = selectedPayment.id;
             setRejectModalOpen(false);
             setSelectedPayment(null);
             setRejectionReason("");
-            fetchPending();
+
+            // Remove the rejected payment from local state (in-place update)
+            setPayments((prev) => prev.filter((p) => p.id !== rejectedId));
         } catch (err: unknown) {
             toast.error(getErrorMessage(err, "Failed to reject payment"));
         } finally {
