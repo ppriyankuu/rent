@@ -8,8 +8,8 @@ declare module "axios" {
 }
 
 const api = axios.create({
-  // baseURL: process.env.NEXT_PUBLIC_API_URL || "https://rent.ppriyankuu.workers.dev",
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8787",
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "https://rent.ppriyankuu.workers.dev",
+  // baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8787",
   headers: { "Content-Type": "application/json" },
 });
 
