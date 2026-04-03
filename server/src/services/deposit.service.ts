@@ -70,7 +70,7 @@ export async function getDepositBalance(
         return {
             originalAmount: deposit.amount,
             totalDeducted,
-            remainingBalance: deposit.amount - totalDeducted,
+            remainingBalance: Math.round((deposit.amount - totalDeducted) * 100) / 100,
         };
     }
 
@@ -94,7 +94,7 @@ export async function getDepositBalance(
     return {
         originalAmount: deposit.amount,
         totalDeducted,
-        remainingBalance: deposit.amount - totalDeducted,
+        remainingBalance: Math.round((deposit.amount - totalDeducted) * 100) / 100,
     };
 }
 

@@ -45,7 +45,7 @@ import { nowISO } from "../utils";
 
 type Variables = { user: JwtPayload };
 
-const paymentsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
+const paymentsRoute = new Hono<{ Bindings: Env; Variables: Variables; ExecutionCtx: ExecutionContext }>();
 
 // ─── POST /api/payments/initiate — TENANT ────────────────────
 paymentsRoute.post(
@@ -124,20 +124,22 @@ paymentsRoute.post(
                     }
                 }
 
-                // Send Telegram notification (non-blocking)
+                // Send Telegram notification (non-blocking, kept alive via waitUntil)
                 if (tenant) {
-                    sendUTRNotification({
-                        tenantName: tenant.name,
-                        tenantEmail: tenant.email,
-                        roomName,
-                        bedName,
-                        amount: payment.amount,
-                        rentMonth: payment.rentMonth,
-                        lateFee: payment.lateFee,
-                        utr: result.utr,
-                        paymentId: result.paymentId,
-                        submittedAt: nowISO(),
-                    }).catch((error) => console.error("Telegram notification failed:", error));
+                    c.executionCtx.waitUntil(
+                        sendUTRNotification(c.env, {
+                            tenantName: tenant.name,
+                            tenantEmail: tenant.email,
+                            roomName,
+                            bedName,
+                            amount: payment.amount,
+                            rentMonth: payment.rentMonth,
+                            lateFee: payment.lateFee,
+                            utr: result.utr,
+                            paymentId: result.paymentId,
+                            submittedAt: nowISO(),
+                        })
+                    );
                 }
             }
 
@@ -414,9 +416,11 @@ paymentsRoute.post("/webhooks/telegram", async (c) => {
 
         if (body.callback_query) {
             const callbackData = body.callback_query.data;
+            const callbackQueryId = body.callback_query.id;
             const chatId = body.callback_query.message.chat.id;
             const messageId = body.callback_query.message.message_id;
             const db = createDb(c.env.rent);
+            const botToken = c.env.TELEGRAM_BOT_TOKEN;
 
             if (callbackData?.startsWith("verify_payment:")) {
                 const paymentId = parseInt(callbackData.split(":")[1], 10);
@@ -424,17 +428,41 @@ paymentsRoute.post("/webhooks/telegram", async (c) => {
                     return c.json(err("Invalid payment ID"), 400);
                 }
 
-                await adminVerifyUPIPayment(db, paymentId, 0, "verify");
+                try {
+                    await adminVerifyUPIPayment(db, paymentId, 0, "verify");
 
-                // Edit message to show result
-                await fetch(`https://api.telegram.org/bot${c.env.TELEGRAM_BOT_TOKEN}/editMessageText`, {
+                    // Edit message to show result
+                    const editRes = await fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            chat_id: chatId,
+                            message_id: messageId,
+                            text: `✅ Payment #${paymentId} has been confirmed.`,
+                        }),
+                    });
+                    if (!editRes.ok) {
+                        console.error(`Telegram editMessageText failed: ${await editRes.text()}`);
+                    }
+                } catch (error) {
+                    console.error(`Error verifying payment #${paymentId}:`, error);
+                    const editRes = await fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            chat_id: chatId,
+                            message_id: messageId,
+                            text: `❌ Error verifying payment #${paymentId}.`,
+                        }),
+                    });
+                    return c.json(err(String(error)), 500);
+                }
+
+                // Answer callback to dismiss the loading indicator
+                await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        chat_id: chatId,
-                        message_id: messageId,
-                        text: `✅ Payment #${paymentId} has been confirmed.`,
-                    }),
+                    body: JSON.stringify({ callback_query_id: callbackQueryId }),
                 });
 
                 return c.json(ok({ message: "Payment verified via Telegram" }));
@@ -444,16 +472,39 @@ paymentsRoute.post("/webhooks/telegram", async (c) => {
                     return c.json(err("Invalid payment ID"), 400);
                 }
 
-                await adminVerifyUPIPayment(db, paymentId, 0, "reject", "Rejected via Telegram");
+                try {
+                    await adminVerifyUPIPayment(db, paymentId, 0, "reject", "Rejected via Telegram");
 
-                await fetch(`https://api.telegram.org/bot${c.env.TELEGRAM_BOT_TOKEN}/editMessageText`, {
+                    const editRes = await fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            chat_id: chatId,
+                            message_id: messageId,
+                            text: `❌ Payment #${paymentId} has been rejected.`,
+                        }),
+                    });
+                    if (!editRes.ok) {
+                        console.error(`Telegram editMessageText failed: ${await editRes.text()}`);
+                    }
+                } catch (error) {
+                    console.error(`Error rejecting payment #${paymentId}:`, error);
+                    const editRes = await fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            chat_id: chatId,
+                            message_id: messageId,
+                            text: `❌ Error rejecting payment #${paymentId}.`,
+                        }),
+                    });
+                    return c.json(err(String(error)), 500);
+                }
+
+                await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        chat_id: chatId,
-                        message_id: messageId,
-                        text: `❌ Payment #${paymentId} has been rejected.`,
-                    }),
+                    body: JSON.stringify({ callback_query_id: callbackQueryId }),
                 });
 
                 return c.json(ok({ message: "Payment rejected via Telegram" }));

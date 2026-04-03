@@ -575,8 +575,9 @@ bookingsRoute.post(
 
             if (balance) {
                 // Validate that refund + deduction equals remaining balance (not original amount)
+                // Use tolerance-based comparison to avoid floating-point precision issues
                 const totalRefundAndDeduction = body.refundAmount + body.deductionAmount;
-                if (totalRefundAndDeduction !== balance.remainingBalance) {
+                if (Math.abs(totalRefundAndDeduction - balance.remainingBalance) > 0.01) {
                     return c.json(
                         err(
                             `Invalid amounts: Refund (${body.refundAmount}) + Deduction (${body.deductionAmount}) = ${totalRefundAndDeduction} ` +

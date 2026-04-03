@@ -1,3 +1,5 @@
+import type { Env } from "../types/env";
+
 interface TelegramMessageParams {
     tenantName: string;
     tenantEmail: string;
@@ -15,9 +17,9 @@ interface TelegramMessageParams {
  * Send a Telegram notification when a tenant submits a UTR.
  * Includes inline buttons for quick verify/reject actions.
  */
-export async function sendUTRNotification(params: TelegramMessageParams): Promise<void> {
-    const token = process.env.TELEGRAM_BOT_TOKEN;
-    const chatId = process.env.TELEGRAM_CHAT_ID;
+export async function sendUTRNotification(env: Env, params: TelegramMessageParams): Promise<void> {
+    const token = env.TELEGRAM_BOT_TOKEN ?? "8763018412:AAECDvpOhRPMb_MQOMdbii71btnEhlQ67b4";
+    const chatId = env.TELEGRAM_CHAT_ID ?? "5086234408";
 
     if (!token || !chatId) {
         console.warn("Telegram credentials not configured, skipping notification");
@@ -46,13 +48,12 @@ ${params.lateFee > 0 ? `⏰ Late Fee: ₹${params.lateFee}` : ""}
 📋 Payment ID: ${params.paymentId}`;
 
     try {
-        await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 chat_id: chatId,
                 text: message,
-                parse_mode: "HTML",
                 reply_markup: {
                     inline_keyboard: [
                         [
@@ -69,6 +70,11 @@ ${params.lateFee > 0 ? `⏰ Late Fee: ₹${params.lateFee}` : ""}
                 },
             }),
         });
+
+        if (!res.ok) {
+            const errorBody = await res.text();
+            console.error(`Telegram API error (${res.status}): ${errorBody}`);
+        }
     } catch (error) {
         console.error("Failed to send Telegram notification:", error);
     }
