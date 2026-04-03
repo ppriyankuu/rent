@@ -425,11 +425,33 @@ paymentsRoute.post("/webhooks/telegram", async (c) => {
             if (callbackData?.startsWith("verify_payment:")) {
                 const paymentId = parseInt(callbackData.split(":")[1], 10);
                 if (isNaN(paymentId)) {
+                    await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ callback_query_id: callbackQueryId, text: "Invalid payment ID" }),
+                    });
                     return c.json(err("Invalid payment ID"), 400);
                 }
 
+                // Get a valid admin user ID for the audit trail
+                const adminUser = await db
+                    .select({ id: users.id })
+                    .from(users)
+                    .where(eq(users.role, "admin"))
+                    .limit(1)
+                    .get();
+
+                if (!adminUser) {
+                    await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ callback_query_id: callbackQueryId, text: "No admin user found" }),
+                    });
+                    return c.json(err("No admin user found"), 500);
+                }
+
                 try {
-                    await adminVerifyUPIPayment(db, paymentId, 0, "verify");
+                    await adminVerifyUPIPayment(db, paymentId, adminUser.id, "verify");
 
                     // Edit message to show result
                     const editRes = await fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, {
@@ -444,36 +466,80 @@ paymentsRoute.post("/webhooks/telegram", async (c) => {
                     if (!editRes.ok) {
                         console.error(`Telegram editMessageText failed: ${await editRes.text()}`);
                     }
+
+                    await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ callback_query_id: callbackQueryId }),
+                    });
+
+                    return c.json(ok({ message: "Payment verified via Telegram" }));
                 } catch (error) {
-                    console.error(`Error verifying payment #${paymentId}:`, error);
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    console.error(`Error verifying payment #${paymentId}:`, errorMessage);
+
+                    // Check if payment was already processed
+                    let displayMessage = "❌ Error verifying payment #${paymentId}.";
+                    if (errorMessage.includes("not found or not pending")) {
+                        displayMessage = `⚠️ Payment #${paymentId} has already been processed or does not exist.`;
+                    }
+
                     const editRes = await fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
                             chat_id: chatId,
                             message_id: messageId,
-                            text: `❌ Error verifying payment #${paymentId}.`,
+                            text: displayMessage,
                         }),
                     });
-                    return c.json(err(String(error)), 500);
+                    if (!editRes.ok) {
+                        console.error(`Telegram editMessageText failed: ${await editRes.text()}`);
+                    }
+
+                    await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ callback_query_id: callbackQueryId }),
+                    });
+
+                    // Don't return 500 if payment was already processed - it's not really an error
+                    if (errorMessage.includes("not found or not pending")) {
+                        return c.json(ok({ message: "Payment already processed" }));
+                    }
+
+                    return c.json(err(errorMessage), 500);
                 }
-
-                // Answer callback to dismiss the loading indicator
-                await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ callback_query_id: callbackQueryId }),
-                });
-
-                return c.json(ok({ message: "Payment verified via Telegram" }));
             } else if (callbackData?.startsWith("reject_payment:")) {
                 const paymentId = parseInt(callbackData.split(":")[1], 10);
                 if (isNaN(paymentId)) {
+                    await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ callback_query_id: callbackQueryId, text: "Invalid payment ID" }),
+                    });
                     return c.json(err("Invalid payment ID"), 400);
                 }
 
+                // Get a valid admin user ID for the audit trail
+                const adminUser = await db
+                    .select({ id: users.id })
+                    .from(users)
+                    .where(eq(users.role, "admin"))
+                    .limit(1)
+                    .get();
+
+                if (!adminUser) {
+                    await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ callback_query_id: callbackQueryId, text: "No admin user found" }),
+                    });
+                    return c.json(err("No admin user found"), 500);
+                }
+
                 try {
-                    await adminVerifyUPIPayment(db, paymentId, 0, "reject", "Rejected via Telegram");
+                    await adminVerifyUPIPayment(db, paymentId, adminUser.id, "reject", "Rejected via Telegram");
 
                     const editRes = await fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, {
                         method: "POST",
@@ -487,27 +553,50 @@ paymentsRoute.post("/webhooks/telegram", async (c) => {
                     if (!editRes.ok) {
                         console.error(`Telegram editMessageText failed: ${await editRes.text()}`);
                     }
+
+                    await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ callback_query_id: callbackQueryId }),
+                    });
+
+                    return c.json(ok({ message: "Payment rejected via Telegram" }));
                 } catch (error) {
-                    console.error(`Error rejecting payment #${paymentId}:`, error);
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    console.error(`Error rejecting payment #${paymentId}:`, errorMessage);
+
+                    // Check if payment was already processed
+                    let displayMessage = `❌ Error rejecting payment #${paymentId}.`;
+                    if (errorMessage.includes("not found or not pending")) {
+                        displayMessage = `⚠️ Payment #${paymentId} has already been processed or does not exist.`;
+                    }
+
                     const editRes = await fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
                             chat_id: chatId,
                             message_id: messageId,
-                            text: `❌ Error rejecting payment #${paymentId}.`,
+                            text: displayMessage,
                         }),
                     });
-                    return c.json(err(String(error)), 500);
+                    if (!editRes.ok) {
+                        console.error(`Telegram editMessageText failed: ${await editRes.text()}`);
+                    }
+
+                    await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ callback_query_id: callbackQueryId }),
+                    });
+
+                    // Don't return 500 if payment was already processed - it's not really an error
+                    if (errorMessage.includes("not found or not pending")) {
+                        return c.json(ok({ message: "Payment already processed" }));
+                    }
+
+                    return c.json(err(errorMessage), 500);
                 }
-
-                await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ callback_query_id: callbackQueryId }),
-                });
-
-                return c.json(ok({ message: "Payment rejected via Telegram" }));
             }
 
             return c.json(ok({ message: "Unknown callback action" }));
