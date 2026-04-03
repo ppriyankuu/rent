@@ -367,6 +367,22 @@ bookingsRoute.get("/my", requireAuth(), async (c) => {
 
     const settings = await getAllSettings(db);
 
+    // Check for pending UPI verification (UTR submitted, awaiting admin decision)
+    const pendingUPI = await db
+        .select({
+            id: payments.id,
+            amount: payments.amount,
+            rentMonth: payments.rentMonth,
+            utr: payments.utr,
+        })
+        .from(payments)
+        .where(and(
+            eq(payments.bookingId, booking.id),
+            eq(payments.type, "upi"),
+            eq(payments.verificationStatus, "pending")
+        ))
+        .get();
+
     return c.json(ok({
         booking: {
             ...booking,
@@ -382,7 +398,8 @@ bookingsRoute.get("/my", requireAuth(), async (c) => {
             rent_due_start_day: settings.rent_due_start_day,
             rent_due_end_day: settings.rent_due_end_day,
             late_fee_amount: settings.late_fee_amount,
-        }
+        },
+        pendingUPIVerification: pendingUPI || null,
     }));
 });
 

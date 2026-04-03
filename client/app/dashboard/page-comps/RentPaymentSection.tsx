@@ -31,7 +31,7 @@ export function RentPaymentSection({
 
   return (
     <>
-      {/* Pending Verification State */}
+      {/* Pending Verification State — UTR submitted, awaiting admin */}
       {bookingData.pendingUPIVerification && (
         <div className="card bg-warning/10 border border-warning/30 mb-6">
           <div className="card-body flex flex-row items-center gap-4 py-4">

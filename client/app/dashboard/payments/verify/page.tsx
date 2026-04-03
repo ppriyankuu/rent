@@ -132,6 +132,9 @@ export default function VerifyPaymentPage() {
                                 <p className="text-sm text-error">{payment.rejectionReason}</p>
                             </div>
                         )}
+                        <p className="text-sm text-base-content/60 mt-2">
+                            You can initiate a new payment from the dashboard.
+                        </p>
                         <button className="btn btn-primary mt-4" onClick={() => router.push("/dashboard")}>
                             Back to Dashboard
                         </button>
@@ -188,9 +191,8 @@ export default function VerifyPaymentPage() {
                                 value={utr}
                                 onChange={(e) => setUtr(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
                                 placeholder="Enter 12-digit Transaction ID"
-                                className={`input input-bordered w-full font-mono ${
-                                    normalizedUtr.length === 12 ? "input-success" : ""
-                                }`}
+                                className={`input input-bordered w-full font-mono ${normalizedUtr.length === 12 ? "input-success" : ""
+                                    }`}
                                 required
                             />
                         </div>
