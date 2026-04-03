@@ -12,7 +12,7 @@ interface UseRoomsReturn {
   refreshRooms: () => Promise<void>;
   createRoom: (name: string, description: string, beds: NewBed[]) => Promise<boolean>;
   updateRoom: (roomId: number, name: string, description: string) => Promise<boolean>;
-  updateBed: (roomId: number, bedId: number, data: Partial<NewBed>) => Promise<boolean>;
+  updateBed: (roomId: number, bedId: number, data: Partial<NewBed>, silent?: boolean) => Promise<boolean>;
   addBedToRoom: (roomId: number, bed: NewBed) => Promise<{ success: boolean; newBed?: BED }>;
   deleteRoom: (roomId: number) => Promise<boolean>;
   deleteBed: (roomId: number, bedId: number) => Promise<boolean>;
@@ -77,10 +77,10 @@ export function useRooms(): UseRoomsReturn {
     }
   }, [fetchRooms]);
 
-  const updateBed = useCallback(async (roomId: number, bedId: number, data: Partial<NewBed>): Promise<boolean> => {
+  const updateBed = useCallback(async (roomId: number, bedId: number, data: Partial<NewBed>, silent = false): Promise<boolean> => {
     try {
       await api.put(`/api/rooms/${roomId}/beds/${bedId}`, data);
-      toast.success("Bed updated!");
+      if (!silent) toast.success("Bed updated!");
       await fetchRooms();
       return true;
     } catch (err: unknown) {

@@ -11,14 +11,13 @@ import type { Payment } from "@/lib/types";
 
 interface PendingUPIVerificationsCardProps {
   payments: Payment[];
-  onVerified: () => void;
 }
 
 /**
  * Shows pending UPI verifications for a tenant with verify/reject actions.
  * Updates the list in-place after an action (no full page refresh).
  */
-export function PendingUPIVerificationsCard({ payments, onVerified }: PendingUPIVerificationsCardProps) {
+export function PendingUPIVerificationsCard({ payments }: PendingUPIVerificationsCardProps) {
   const [localPayments, setLocalPayments] = useState<Payment[]>(payments);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
@@ -41,9 +40,6 @@ export function PendingUPIVerificationsCard({ payments, onVerified }: PendingUPI
 
       // Remove the verified payment from the local list (in-place update)
       setLocalPayments((prev) => prev.filter((p) => p.id !== paymentId));
-
-      // Notify parent to sync state (optional, no full refetch needed)
-      onVerified();
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, "Failed to verify payment"));
     } finally {
@@ -71,9 +67,6 @@ export function PendingUPIVerificationsCard({ payments, onVerified }: PendingUPI
 
       // Remove the rejected payment from the local list (in-place update)
       setLocalPayments((prev) => prev.filter((p) => p.id !== rejectedId));
-
-      // Notify parent to sync state (optional, no full refetch needed)
-      onVerified();
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, "Failed to reject payment"));
     } finally {

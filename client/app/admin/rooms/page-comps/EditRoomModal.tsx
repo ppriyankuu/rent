@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Modal } from "@/components/Modal";
 import { Trash2 } from "lucide-react";
+import toast from "react-hot-toast";
 import type { Room, NewBed, BED } from "@/lib/types";
 
 interface EditRoomModalProps {
@@ -10,7 +11,7 @@ interface EditRoomModalProps {
   onClose: () => void;
   room: Room | null;
   onSave: (roomId: number, name: string, description: string) => Promise<boolean>;
-  onUpdateBed: (roomId: number, bedId: number, data: Partial<NewBed>) => Promise<boolean>;
+  onUpdateBed: (roomId: number, bedId: number, data: Partial<NewBed>, silent?: boolean) => Promise<boolean>;
   onAddBed: (roomId: number, bed: NewBed) => Promise<boolean>;
   onDeleteBed: (roomId: number, bedId: number) => void;
   isSaving: boolean;
@@ -70,20 +71,25 @@ export function EditRoomModal({
 
     // Save all edited beds
     let allSuccess = true;
+    let savedCount = 0;
     for (const bed of editedBeds) {
       if (bed.edited) {
         const success = await onUpdateBed(room.id, bed.id, {
           name: bed.name,
           monthlyRent: bed.monthlyRent,
-        });
+        }, true); // silent: no individual toasts
         if (!success) {
           allSuccess = false;
           break;
         }
+        savedCount++;
       }
     }
 
     if (allSuccess) {
+      if (savedCount > 0) {
+        toast.success(`${savedCount} bed${savedCount > 1 ? "s" : ""} updated!`);
+      }
       onClose();
     }
   };

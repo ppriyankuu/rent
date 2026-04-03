@@ -71,8 +71,8 @@ export default function AdminRoomsPage() {
     return success;
   };
 
-  const handleUpdateBed = async (roomId: number, bedId: number, data: Partial<NewBed>) => {
-    return await updateBed(roomId, bedId, data);
+  const handleUpdateBed = async (roomId: number, bedId: number, data: Partial<NewBed>, silent?: boolean) => {
+    return await updateBed(roomId, bedId, data, silent);
   };
 
   const handleAddBedToRoom = async (roomId: number, bed: NewBed) => {

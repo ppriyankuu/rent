@@ -197,7 +197,6 @@ export default function TenantDetailPage() {
 
       <PendingUPIVerificationsCard
         payments={tenantDetail.pendingUPIVerifications || []}
-        onVerified={() => refreshTenantDetail(tenantId)}
       />
 
       <PaymentHistoryCard payments={payments} />
