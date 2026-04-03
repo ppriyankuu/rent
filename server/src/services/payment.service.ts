@@ -81,7 +81,8 @@ export async function initiateRentPayment(
 
     if (existing) throw new Error(`Rent for ${rentMonth} already paid`);
 
-    // Check for existing pending UPI payment for same month — return it instead of creating a duplicate
+    // Check for existing pending UPI payment for same month.
+    // If found, delete it — the amount may be stale if rent was updated.
     const existingPending = await db
         .select()
         .from(payments)
@@ -98,24 +99,29 @@ export async function initiateRentPayment(
         .get();
 
     if (existingPending) {
-        // Return existing pending payment with its UPI link
-        const upiLink = generateUPILink({
-            upiId,
-            name: upiPayeeName,
-            amount: existingPending.amount,
-            note: `Rent ${rentMonth}`,
-            transactionRef: `pay_${existingPending.id}`,
-        });
+        // Delete stale pending payment so a fresh one with correct amount is created below.
+        // If the tenant already submitted a UTR (verificationStatus === "pending"), don't delete — return it.
+        if (existingPending.verificationStatus === "pending") {
+            const upiLink = generateUPILink({
+                upiId,
+                name: upiPayeeName,
+                amount: existingPending.amount,
+                note: `Rent ${rentMonth}`,
+                transactionRef: `pay_${existingPending.id}`,
+            });
 
-        return {
-            paymentId: existingPending.id,
-            upiLink,
-            amount: existingPending.amount,
-            currency: "INR",
-            tenantName: tenant.name,
-            tenantEmail: tenant.email,
-            rentMonth,
-        };
+            return {
+                paymentId: existingPending.id,
+                upiLink,
+                amount: existingPending.amount,
+                currency: "INR",
+                tenantName: tenant.name,
+                tenantEmail: tenant.email,
+                rentMonth,
+            };
+        }
+        // No UTR submitted yet — delete the stale record
+        await db.delete(payments).where(eq(payments.id, existingPending.id));
     }
 
     // Check if this is the first rent payment for this booking

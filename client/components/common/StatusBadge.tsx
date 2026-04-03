@@ -14,7 +14,8 @@ interface StatusBadgeProps {
  */
 export function StatusBadge({ status, size = "sm", className = "" }: StatusBadgeProps) {
   const sizeClass = size === "sm" ? "badge-sm" : "badge-md";
-  const baseClass = `badge ${sizeClass} ${className}`;
+  // whitespace-normal + h-auto ensure the badge background expands when text wraps on narrow screens
+  const baseClass = `badge ${sizeClass} whitespace-normal h-auto ${className}`;
 
   // Status-specific styling
   switch (status.toLowerCase()) {
@@ -70,7 +71,8 @@ interface StatusBadgeWithIconProps extends StatusBadgeProps {
 
 export function StatusBadgeWithIcon({ status, showIcon = true, size = "sm", className = "" }: StatusBadgeWithIconProps) {
   const sizeClass = size === "sm" ? "badge-xs" : "badge-sm";
-  const baseClass = `badge ${sizeClass} gap-1 ${className}`;
+  // whitespace-normal + h-auto ensure the badge background expands when text wraps on narrow screens
+  const baseClass = `badge ${sizeClass} gap-1 whitespace-normal h-auto ${className}`;
 
   switch (status.toLowerCase()) {
     case "active":

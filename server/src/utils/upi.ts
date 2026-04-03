@@ -20,9 +20,14 @@ export function generateUPILink(params: GenerateUPILinkParams): string {
         tn: params.note,
     });
 
+    // URLSearchParams encodes spaces as '+', which many UPI apps reject.
+    // Replace '+' with '%20' for proper encoding.
+    const encoded = searchParams.toString().replace(/\+/g, "%20");
+
     if (params.transactionRef) {
-        searchParams.set("tr", params.transactionRef);
+        const trValue = encodeURIComponent(params.transactionRef);
+        return `${base}?${encoded}&tr=${trValue}`;
     }
 
-    return `${base}?${searchParams.toString()}`;
+    return `${base}?${encoded}`;
 }
