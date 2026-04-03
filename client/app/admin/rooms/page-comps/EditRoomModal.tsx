@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Modal } from "@/components/Modal";
 import { Trash2 } from "lucide-react";
-import type { Room, NewBed } from "@/lib/types";
+import type { Room, NewBed, BED } from "@/lib/types";
 
 interface EditRoomModalProps {
   open: boolean;
@@ -14,6 +14,13 @@ interface EditRoomModalProps {
   onAddBed: (roomId: number, bed: NewBed) => Promise<boolean>;
   onDeleteBed: (roomId: number, bedId: number) => void;
   isSaving: boolean;
+}
+
+interface LocalBedState {
+  id: number;
+  name: string;
+  monthlyRent: number;
+  edited: boolean;
 }
 
 /**
@@ -33,13 +40,50 @@ export function EditRoomModal({
   const [newBedForRoom, setNewBedForRoom] = useState<NewBed>({ name: "", monthlyRent: 0 });
   const [editedName, setEditedName] = useState(room?.name ?? "");
   const [editedDescription, setEditedDescription] = useState(room?.description ?? "");
+  const [editedBeds, setEditedBeds] = useState<LocalBedState[]>([]);
+
+  // Sync local state when room changes
+  useEffect(() => {
+    setEditedName(room?.name ?? "");
+    setEditedDescription(room?.description ?? "");
+    if (room?.beds) {
+      setEditedBeds(
+        room.beds.map((bed: BED) => ({
+          id: bed.id,
+          name: bed.name,
+          monthlyRent: bed.monthlyRent,
+          edited: false,
+        }))
+      );
+    }
+    setNewBedForRoom({ name: "", monthlyRent: 0 });
+  }, [room]);
 
   if (!room) return null;
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await onSave(room.id, editedName, editedDescription);
-    if (success) {
+
+    // Save room name/description
+    const roomSuccess = await onSave(room.id, editedName, editedDescription);
+    if (!roomSuccess) return;
+
+    // Save all edited beds
+    let allSuccess = true;
+    for (const bed of editedBeds) {
+      if (bed.edited) {
+        const success = await onUpdateBed(room.id, bed.id, {
+          name: bed.name,
+          monthlyRent: bed.monthlyRent,
+        });
+        if (!success) {
+          allSuccess = false;
+          break;
+        }
+      }
+    }
+
+    if (allSuccess) {
       onClose();
     }
   };
@@ -51,6 +95,16 @@ export function EditRoomModal({
     if (success) {
       setNewBedForRoom({ name: "", monthlyRent: 0 });
     }
+  };
+
+  const updateBed = (bedId: number, field: "name" | "monthlyRent", value: string | number) => {
+    setEditedBeds((prev) =>
+      prev.map((bed) =>
+        bed.id === bedId
+          ? { ...bed, [field]: value, edited: true }
+          : bed
+      )
+    );
   };
 
   return (
@@ -83,13 +137,13 @@ export function EditRoomModal({
         <div>
           <label className="label-text font-medium mb-2 block">Beds (Edit details)</label>
           <div className="space-y-2">
-            {room.beds.map((bed) => (
+            {editedBeds.map((bed) => (
               <div key={bed.id} className="flex gap-2 items-center">
                 <input
                   type="text"
                   className="input input-bordered input-sm flex-1"
                   value={bed.name}
-                  onChange={(e) => onUpdateBed(room.id, bed.id, { name: e.target.value })}
+                  onChange={(e) => updateBed(bed.id, "name", e.target.value)}
                   required
                 />
                 <input
@@ -98,7 +152,7 @@ export function EditRoomModal({
                   pattern="[0-9]*"
                   className="input input-bordered input-sm w-28"
                   value={bed.monthlyRent}
-                  onChange={(e) => onUpdateBed(room.id, bed.id, { monthlyRent: Number(e.target.value) || 0 })}
+                  onChange={(e) => updateBed(bed.id, "monthlyRent", Number(e.target.value) || 0)}
                   required
                 />
                 <button
