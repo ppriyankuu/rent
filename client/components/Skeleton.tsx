@@ -97,6 +97,14 @@ export function DashboardSkeleton() {
               <Skeleton className="h-3 w-24 mb-2" />
               <Skeleton className="h-6 w-24" />
             </div>
+            <div>
+              <Skeleton className="h-3 w-20 mb-2" />
+              <Skeleton className="h-6 w-24" />
+            </div>
+            <div>
+              <Skeleton className="h-3 w-16 mb-2" />
+              <Skeleton className="h-6 w-28" />
+            </div>
           </div>
         </div>
       </div>
