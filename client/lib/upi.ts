@@ -42,3 +42,21 @@ export function supportsUPIIntent(): boolean {
     const ua = navigator.userAgent;
     return /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
 }
+
+/**
+ * Check if the device is Android.
+ */
+export function isAndroid(): boolean {
+    if (typeof window === "undefined") return false;
+    return /Android/i.test(navigator.userAgent);
+}
+
+/**
+ * Convert a upi:// link to an Android intent:// URI.
+ * Chrome on Android handles intent:// URIs more reliably
+ * than custom upi:// scheme navigations.
+ */
+export function toAndroidIntentLink(upiLink: string): string {
+    const withoutScheme = upiLink.replace(/^upi:\/\//, "");
+    return `intent://${withoutScheme}#Intent;scheme=upi;action=android.intent.action.VIEW;end`;
+}

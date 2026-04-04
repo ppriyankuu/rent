@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Modal } from "@/components/Modal";
-import { generateUPILink, supportsUPIIntent } from "@/lib/upi";
+import { generateUPILink, supportsUPIIntent, isAndroid, toAndroidIntentLink } from "@/lib/upi";
 import QRCode from "qrcode";
 import { Copy, Smartphone, QrCode } from "lucide-react";
 import toast from "react-hot-toast";
@@ -40,6 +40,7 @@ export function UPICheckoutModal({
     });
 
     const isMobile = supportsUPIIntent();
+    const intentLink = isAndroid() ? toAndroidIntentLink(upiLink) : upiLink;
 
     useEffect(() => {
         if (open) {
@@ -54,10 +55,6 @@ export function UPICheckoutModal({
         setCopied(true);
         toast.success("UPI ID copied!");
         setTimeout(() => setCopied(false), 2000);
-    };
-
-    const handleOpenUPIApp = () => {
-        window.location.href = upiLink;
     };
 
     const handleProceed = () => {
@@ -104,13 +101,13 @@ export function UPICheckoutModal({
 
                 {/* Mobile: Open UPI App button */}
                 {isMobile && (
-                    <button
-                        onClick={handleOpenUPIApp}
+                    <a
+                        href={intentLink}
                         className="btn btn-primary w-full"
                     >
                         <Smartphone className="h-4 w-4" />
                         Open UPI App
-                    </button>
+                    </a>
                 )}
 
                 {/* Important message */}

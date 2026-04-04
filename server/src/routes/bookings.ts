@@ -56,7 +56,11 @@ bookingsRoute.post(
             .from(bookings)
             .where(and(
                 eq(bookings.tenantId, tenantId),
-                or(eq(bookings.status, "active"), eq(bookings.status, "pending_deposit"))
+                or(
+                    eq(bookings.status, "active"),
+                    eq(bookings.status, "pending_deposit"),
+                    eq(bookings.status, "deposit_paid")
+                )
             ))
             .get();
 

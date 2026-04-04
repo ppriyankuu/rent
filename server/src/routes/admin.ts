@@ -128,10 +128,19 @@ adminRoute.get("/tenants", zValidator("query", paginationSchema), async (c) => {
         .offset(offset)
         .all();
 
+    // Deduplicate: a user may have multiple active/deposit_paid bookings
+    // (e.g. booked a new bed before the old one ended). Keep only the first.
+    const seen = new Set<number>();
+    const uniqueTenants = tenantList.filter((t) => {
+        if (seen.has(t.id)) return false;
+        seen.add(t.id);
+        return true;
+    });
+
     const totalPages = Math.ceil(total / limit);
 
-    const response: PaginatedResponse<typeof tenantList[0]> = {
-        data: tenantList,
+    const response: PaginatedResponse<typeof uniqueTenants[0]> = {
+        data: uniqueTenants,
         pagination: {
             page,
             limit,

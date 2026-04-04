@@ -22,7 +22,10 @@ export function MoveOutDateModal({
   onSubmit,
   isSubmitting,
 }: MoveOutDateModalProps) {
-  const today = new Date().toISOString().split("T")[0];
+
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const minDate = tomorrow.toISOString().split("T")[0];
 
   return (
     <Modal open={open} onClose={onClose} title="Update Expected Move-Out Date">
@@ -37,7 +40,7 @@ export function MoveOutDateModal({
             className="input input-bordered w-full"
             value={moveOutDate}
             onChange={(e) => setMoveOutDate(e.target.value)}
-            min={today}
+            min={minDate}
             required
           />
         </div>

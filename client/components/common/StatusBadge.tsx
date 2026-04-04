@@ -14,8 +14,8 @@ interface StatusBadgeProps {
  */
 export function StatusBadge({ status, size = "sm", className = "" }: StatusBadgeProps) {
   const sizeClass = size === "sm" ? "badge-sm" : "badge-md";
-  // whitespace-normal + h-auto ensure the badge background expands when text wraps on narrow screens
-  const baseClass = `badge ${sizeClass} whitespace-normal h-auto ${className}`;
+  // whitespace-nowrap + leading-snug + tighter padding keep the badge compact when text wraps on mobile
+  const baseClass = `badge ${sizeClass} whitespace-nowrap leading-snug py-0.5 px-2 ${className}`;
 
   // Status-specific styling
   switch (status.toLowerCase()) {
@@ -25,30 +25,30 @@ export function StatusBadge({ status, size = "sm", className = "" }: StatusBadge
     case "resolved":
     case "available":
     case "paid":
-      return <span className={`${baseClass} badge-success`}>{formatStatusLabel(status)}</span>;
+      return <span className={`${baseClass} badge-success`}><ResponsiveLabel status={status} /></span>;
 
     // Warning/Pending states
     case "pending":
     case "pending_deposit":
     case "in_progress":
     case "reserved":
-      return <span className={`${baseClass} badge-warning`}>{formatStatusLabel(status)}</span>;
+      return <span className={`${baseClass} badge-warning`}><ResponsiveLabel status={status} /></span>;
 
     // Info/Neutral states
     case "no_booking":
     case "deposit_paid":
-      return <span className={`${baseClass} badge-info`}>{formatStatusLabel(status)}</span>;
+      return <span className={`${baseClass} badge-info`}><ResponsiveLabel status={status} /></span>;
 
     // Error states
     case "ended":
     case "failed":
     case "inactive":
     case "occupied":
-      return <span className={`${baseClass} badge-error`}>{formatStatusLabel(status)}</span>;
+      return <span className={`${baseClass} badge-error`}><ResponsiveLabel status={status} /></span>;
 
     // Default/ghost
     default:
-      return <span className={`${baseClass} badge-ghost`}>{formatStatusLabel(status)}</span>;
+      return <span className={`${baseClass} badge-ghost`}><ResponsiveLabel status={status} /></span>;
   }
 }
 
@@ -62,6 +62,26 @@ function formatStatusLabel(status: string): string {
     .join(" ");
 }
 
+/** Short labels shown on small screens to prevent badge wrapping */
+const SHORT_LABELS: Record<string, string> = {
+  deposit_paid: "Dep Pd",
+  no_booking: "No Bk",
+};
+
+function ResponsiveLabel({ status }: { status: string }) {
+  const fullLabel = formatStatusLabel(status);
+  const shortLabel = SHORT_LABELS[status.toLowerCase()];
+
+  if (!shortLabel) return <>{fullLabel}</>;
+
+  return (
+    <>
+      <span className="hidden sm:inline">{fullLabel}</span>
+      <span className="sm:hidden">{shortLabel}</span>
+    </>
+  );
+}
+
 /**
  * Status badge with icon support for common statuses.
  */
@@ -71,8 +91,8 @@ interface StatusBadgeWithIconProps extends StatusBadgeProps {
 
 export function StatusBadgeWithIcon({ status, showIcon = true, size = "sm", className = "" }: StatusBadgeWithIconProps) {
   const sizeClass = size === "sm" ? "badge-xs" : "badge-sm";
-  // whitespace-normal + h-auto ensure the badge background expands when text wraps on narrow screens
-  const baseClass = `badge ${sizeClass} gap-1 whitespace-normal h-auto ${className}`;
+  // whitespace-nowrap + leading-snug + tighter padding keep the badge compact when text wraps on mobile
+  const baseClass = `badge ${sizeClass} gap-1 whitespace-nowrap leading-snug py-0.5 px-2 ${className}`;
 
   switch (status.toLowerCase()) {
     case "active":
@@ -81,7 +101,7 @@ export function StatusBadgeWithIcon({ status, showIcon = true, size = "sm", clas
     case "available":
       return (
         <span className={`${baseClass} badge-success`}>
-          {showIcon && <CheckIcon />} {formatStatusLabel(status)}
+          {showIcon && <CheckIcon />} <ResponsiveLabel status={status} />
         </span>
       );
 
@@ -91,7 +111,7 @@ export function StatusBadgeWithIcon({ status, showIcon = true, size = "sm", clas
     case "reserved":
       return (
         <span className={`${baseClass} badge-warning`}>
-          {showIcon && <ClockIcon />} {formatStatusLabel(status)}
+          {showIcon && <ClockIcon />} <ResponsiveLabel status={status} />
         </span>
       );
 
@@ -100,12 +120,12 @@ export function StatusBadgeWithIcon({ status, showIcon = true, size = "sm", clas
     case "occupied":
       return (
         <span className={`${baseClass} badge-error`}>
-          {showIcon && <XIcon />} {formatStatusLabel(status)}
+          {showIcon && <XIcon />} <ResponsiveLabel status={status} />
         </span>
       );
 
     default:
-      return <span className={`${baseClass} badge-ghost`}>{formatStatusLabel(status)}</span>;
+      return <span className={`${baseClass} badge-ghost`}><ResponsiveLabel status={status} /></span>;
   }
 }
 
