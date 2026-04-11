@@ -11,8 +11,8 @@ export function HouseRules() {
 
         <ul className="list-disc list-outside ml-5 space-y-1 text-base-content/70 text-justify leading-tight">
           <li>Please help keep the rooms and facilities clean — future you (and everyone else) will appreciate it.</li>
-          <li>The bathroom is shared, so please leave it the way you&apos;d like to find it.</li>
-          <li>If something stops working, just raise a complaint from your dashboard — we&apos;ll handle the rest.</li>
+          <li>The bathroom and kitchen are shared, so please leave them the way you&apos;d like to find them.</li>
+          <li>If something stops working, just raise a complaint from your dashboard — we&apos;ll take a look at it.</li>
           <li>Noise happens, we get it. Just try to keep it low, especially at night.</li>
           <li>Dustbins are provided — let&apos;s use them and keep the place tidy.</li>
         </ul>

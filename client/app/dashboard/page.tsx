@@ -52,6 +52,7 @@ export default function DashboardPage() {
     paymentId: number;
     upiLink: string;
     amount: number;
+    lateFee: number;
     rentMonth: string;
   } | null>(null);
 
@@ -94,6 +95,7 @@ export default function DashboardPage() {
         paymentId: paymentData.paymentId,
         upiLink: paymentData.upiLink,
         amount: paymentData.amount,
+        lateFee: paymentData.lateFee || 0,
         rentMonth,
       });
       setUpiModalOpen(true);
@@ -223,6 +225,7 @@ export default function DashboardPage() {
         onClose={() => setUpiModalOpen(false)}
         onProceed={handleUPIProceed}
         amount={upiPaymentData?.amount || 0}
+        lateFee={upiPaymentData?.lateFee || 0}
         rentMonth={upiPaymentData?.rentMonth || ""}
         upiId={process.env.NEXT_PUBLIC_UPI_ID ?? "workwithpriyanku@oksbi"}
         payeeName={process.env.NEXT_PUBLIC_UPI_PAYEE_NAME ?? "Priyanku Gogoi"}

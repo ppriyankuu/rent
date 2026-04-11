@@ -12,6 +12,7 @@ interface UPICheckoutModalProps {
     onClose: () => void;
     onProceed: () => void;
     amount: number;
+    lateFee: number;
     rentMonth: string;
     upiId: string;
     payeeName: string;
@@ -23,6 +24,7 @@ export function UPICheckoutModal({
     onClose,
     onProceed,
     amount,
+    lateFee,
     rentMonth,
     upiId,
     payeeName,
@@ -45,7 +47,7 @@ export function UPICheckoutModal({
         if (open) {
             QRCode.toDataURL(upiLink, { width: 256, margin: 2 })
                 .then(setQrDataUrl)
-                .catch(() => {});
+                .catch(() => { });
         }
     }, [open, upiLink]);
 
@@ -64,11 +66,40 @@ export function UPICheckoutModal({
     return (
         <Modal open={open} onClose={onClose} title={`Pay Rent — ${rentMonth}`}>
             <div className="space-y-6">
-                {/* Amount */}
+                {/* Amount Breakdown */}
                 <div className="text-center">
                     <p className="text-sm text-base-content/60">Amount to Pay</p>
-                    <p className="text-3xl font-bold">₹{amount.toLocaleString()}</p>
+                    {lateFee > 0 ? (
+                        <div className="mt-2 space-y-1">
+                            <p className="text-lg">
+                                <span className="text-base-content/70">Rent:</span>{" "}
+                                <span className="font-medium">₹{(amount - lateFee).toLocaleString()}</span>
+                            </p>
+                            <p className="text-lg text-error">
+                                <span>Late Fee:</span>{" "}
+                                <span className="font-medium">₹{lateFee.toLocaleString()}</span>
+                            </p>
+                            <div className="border-t border-base-content/10 pt-2 mt-2">
+                                <p className="text-3xl font-bold">₹{amount.toLocaleString()}</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <p className="text-3xl font-bold">₹{amount.toLocaleString()}</p>
+                    )}
                 </div>
+
+                {/* Late Fee Warning */}
+                {lateFee > 0 && (
+                    <div className="alert alert-warning text-sm">
+                        <div>
+                            <p className="font-medium">⏰ Late Payment Fee Applied</p>
+                            <p className="mt-1">
+                                This payment includes a late fee of <span className="font-semibold">₹{lateFee}</span> because the rent was paid after the due date.
+                                Please try to pay on time in the future to avoid additional charges.
+                            </p>
+                        </div>
+                    </div>
+                )}
 
                 {/* QR Code (always shown) */}
                 <div className="flex flex-col items-center">

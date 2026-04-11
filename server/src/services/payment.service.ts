@@ -13,6 +13,7 @@ export interface InitiatePaymentResult {
     paymentId: number;
     upiLink: string;
     amount: number;
+    lateFee: number;
     currency: string;
     tenantName: string;
     tenantEmail: string;
@@ -114,6 +115,7 @@ export async function initiateRentPayment(
                 paymentId: existingPending.id,
                 upiLink,
                 amount: existingPending.amount,
+                lateFee: existingPending.lateFee,
                 currency: "INR",
                 tenantName: tenant.name,
                 tenantEmail: tenant.email,
@@ -201,6 +203,7 @@ export async function initiateRentPayment(
         paymentId: result.id,
         upiLink,
         amount: totalAmount,
+        lateFee,
         currency: "INR",
         tenantName: tenant.name,
         tenantEmail: tenant.email,

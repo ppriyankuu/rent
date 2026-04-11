@@ -1,3 +1,4 @@
+
 "use client";
 
 import { X } from "lucide-react";
@@ -50,6 +51,15 @@ export function RoomImageModal({ open, onClose, images }: RoomImageModalProps) {
               </div>
             ))}
           </div>
+
+          {/* Footer Note */}
+          <p className="mt-5 text-xs sm:text-sm text-center text-base-content/70">
+            We do take a{" "}
+            <span className="font-semibold text-base-content">
+              security deposit
+            </span>{" "}
+            — don’t worry, it comes back to you when you leave (as long as nothing mysteriously breaks 👀)
+          </p>
         </div>
       </div>
     </div>
