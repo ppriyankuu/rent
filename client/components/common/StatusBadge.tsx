@@ -37,6 +37,7 @@ export function StatusBadge({ status, size = "sm", className = "" }: StatusBadge
     // Info/Neutral states
     case "no_booking":
     case "deposit_paid":
+    case "no_verification":
       return <span className={`${baseClass} badge-info`}><ResponsiveLabel status={status} /></span>;
 
     // Error states
@@ -66,10 +67,15 @@ function formatStatusLabel(status: string): string {
 const SHORT_LABELS: Record<string, string> = {
   deposit_paid: "Dep Pd",
   no_booking: "No Bk",
+  no_verification: "UTR N/S",
+};
+
+const CUSTOM_LABELS: Record<string, string> = {
+  no_verification: "UTR Not Submitted",
 };
 
 function ResponsiveLabel({ status }: { status: string }) {
-  const fullLabel = formatStatusLabel(status);
+  const fullLabel = CUSTOM_LABELS[status.toLowerCase()] || formatStatusLabel(status);
   const shortLabel = SHORT_LABELS[status.toLowerCase()];
 
   if (!shortLabel) return <>{fullLabel}</>;
