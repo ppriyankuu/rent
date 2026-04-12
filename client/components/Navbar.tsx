@@ -28,13 +28,30 @@ export function Navbar({ hideMobileMenu = false, drawerId }: { hideMobileMenu?: 
             <div tabIndex={0} role="button" className="btn btn-ghost lg:hidden">
               <Menu className="h-5 w-5" />
             </div>
-            <ul tabIndex={0} className="menu menu-sm dropdown-content bg-base-100 rounded-box z-50 mt-3 w-32 p-2 shadow">
-              <li><Link href="/"><Home className="h-4 w-4" /> Rooms</Link></li>
+            <ul
+              tabIndex={0}
+              className="menu menu-sm dropdown-content bg-base-100 rounded-box z-50 mt-3 w-38 p-3 shadow text-base"
+            >
+              <li>
+                <Link href="/" className="gap-2.5">
+                  <Home className="h-5 w-5" /> Rooms
+                </Link>
+              </li>
+
               {isAuthenticated && !isAdmin && (
-                <li><Link href="/dashboard"><LayoutDashboard className="h-4 w-4" /> Dashboard</Link></li>
+                <li>
+                  <Link href="/dashboard" className="gap-2.5">
+                    <LayoutDashboard className="h-5 w-5" /> Dashboard
+                  </Link>
+                </li>
               )}
+
               {isAdmin && (
-                <li><Link href="/admin"><Shield className="h-4 w-4" /> Admin</Link></li>
+                <li>
+                  <Link href="/admin" className="gap-2.5">
+                    <Shield className="h-5 w-5" /> Admin
+                  </Link>
+                </li>
               )}
             </ul>
           </div>
