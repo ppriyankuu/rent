@@ -145,7 +145,9 @@ export default function VerifyPaymentPage() {
     }
 
     // UTR not yet submitted — show input form
-    const totalAmount = payment.amount + payment.lateFee;
+    // Note: payment.amount already includes the late fee (total = baseRent + lateFee)
+    const totalAmount = payment.amount;
+    const baseRent = totalAmount - payment.lateFee;
 
     return (
         <div className="max-w-md mx-auto mt-12">
@@ -161,7 +163,7 @@ export default function VerifyPaymentPage() {
                         </div>
                         <div className="flex justify-between">
                             <span className="text-base-content/60">Rent</span>
-                            <span className="font-medium">₹{(totalAmount - payment.lateFee).toLocaleString()}</span>
+                            <span className="font-medium">₹{baseRent.toLocaleString()}</span>
                         </div>
                         {payment.lateFee > 0 && (
                             <div className="flex justify-between">
