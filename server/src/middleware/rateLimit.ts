@@ -133,8 +133,8 @@ export function loginRateLimit(): MiddlewareHandler<{ Bindings: Env }> {
             return `login:${ip}`;
         },
         maxAttempts: 5,
-        windowMs: 15 * 60 * 1000, // 15 minutes
-        message: "Too many login attempts. Please try again in 15 minutes.",
+        windowMs: 10 * 60 * 1000, // 10 minutes
+        message: "Too many login attempts. Please try again in 10 minutes.",
     });
 }
 
@@ -150,9 +150,9 @@ export function signupRateLimit(): MiddlewareHandler<{ Bindings: Env }> {
                        "unknown";
             return `signup:${ip}`;
         },
-        maxAttempts: 3,
-        windowMs: 60 * 60 * 1000, // 1 hour
-        message: "Too many signup attempts. Please try again in an hour.",
+        maxAttempts: 5,
+        windowMs: 2 * 60 * 1000, // 2 min
+        message: "Too many signup attempts. Please try again in a minute or two.",
     });
 }
 

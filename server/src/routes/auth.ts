@@ -29,7 +29,7 @@ type Variables = { user: JwtPayload };
 const auth = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 // ─── POST /api/auth/signup ────────────────────────────────────
-// Rate limited: 3 signups per hour per IP
+// Rate limited: 5 signups per hour per IP
 auth.post("/signup", signupRateLimit(), zValidator("json", signupSchema), async (c) => {
     const body = c.req.valid("json");
     const db = createDb(c.env.rent);

@@ -13,6 +13,8 @@ export default function SignupPage() {
   const [formData, setFormData] = useState({ name: "", email: "", password: "", phone: "" });
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
   const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -129,7 +131,27 @@ export default function SignupPage() {
               </label>
               <label className="input input-bordered flex items-center gap-2 w-full">
                 <Lock className="h-4 w-4 opacity-50" />
-                <input type="password" name="password" placeholder="Password (min 6 characters)" value={formData.password} onChange={handleChange} required minLength={6} className="grow" />
+
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  placeholder="Password (min 6 characters)"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                  minLength={6}
+                  className="grow"
+                />
+
+                {formData.password && (
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="text-xs cursor-pointer opacity-60 hover:opacity-100"
+                  >
+                    {showPassword ? "Hide" : "Show"}
+                  </button>
+                )}
               </label>
               <button type="submit" className={`btn btn-primary w-full ${loading ? "btn-disabled" : ""}`} disabled={loading}>
                 {loading && <span className="loading loading-spinner loading-sm"></span>}

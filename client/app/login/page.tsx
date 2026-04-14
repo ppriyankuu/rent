@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { login } = useAuth();
   const router = useRouter();
 
@@ -83,7 +84,16 @@ export default function LoginPage() {
               </label>
               <label className="input input-bordered flex items-center gap-2 w-full">
                 <Lock className="h-4 w-4 opacity-50" />
-                <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required className="grow" />
+                <input type={showPassword ? "text" : "password"} placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required className="grow" minLength={6} />
+                {password && (
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="text-xs cursor-pointer opacity-60 hover:opacity-100"
+                  >
+                    {showPassword ? "Hide" : "Show"}
+                  </button>
+                )}
               </label>
               <button type="submit" className={`btn btn-primary w-full ${loading ? "btn-disabled" : ""}`} disabled={loading}>
                 {loading && <span className="loading loading-spinner loading-sm"></span>}
