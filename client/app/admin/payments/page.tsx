@@ -204,7 +204,10 @@ export default function AdminPaymentsPage() {
                       <td>
                         <StatusBadge status={p.status} />
                         {p.type === "upi" && p.status === "pending" && p.verificationStatus === null && (
-                          <span className="badge badge-info badge-sm ml-1">UTR Not Submitted</span>
+                          <span className="badge badge-info badge-sm ml-1">
+                            <span className="sm:hidden">UTR N/S</span>
+                            <span className="hidden sm:inline">UTR Not Submitted</span>
+                          </span>
                         )}
                         {p.type === "upi" && p.verificationStatus === "pending" && (
                           <span className="badge badge-warning badge-sm ml-1">Awaiting</span>
