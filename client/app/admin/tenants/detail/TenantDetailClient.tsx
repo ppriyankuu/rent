@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { useTenants } from "@/hooks/useTenants";
 import { ConfirmModal } from "@/components/common/ConfirmModal";
@@ -16,10 +16,10 @@ import { UpdateRentModal } from "./page-comps/UpdateRentModal";
 import { EndBookingModal } from "./page-comps/EndBookingModal";
 import { ChargeDeductionModal } from "./page-comps/ChargeDeductionModal";
 
-export default function TenantDetailClient() {
-  const params = useParams();
+function TenantDetailContent() {
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const tenantId = params.id as string;
+  const tenantId = searchParams.get("id") as string;
 
   const {
     tenantDetail,
@@ -254,5 +254,13 @@ export default function TenantDetailClient() {
         variant="danger"
       />
     </div>
+  );
+}
+
+export default function TenantDetailClient() {
+  return (
+    <Suspense fallback={<LoadingSpinner text="Loading tenant..." />}>
+      <TenantDetailContent />
+    </Suspense>
   );
 }

@@ -180,7 +180,7 @@ export default function AdminTenantsPage() {
                   <td>
                     <div className="flex gap-1">
                       <Link
-                        href={`/admin/tenants/${t.id}`}
+                        href={`/admin/tenants/detail?id=${t.id}`}
                         className="btn btn-ghost btn-xs"
                         title="View Details"
                         aria-label="View tenant details"
