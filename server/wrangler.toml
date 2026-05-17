@@ -5,27 +5,27 @@ compatibility_flags = ["nodejs_compat"]
 
 # ─── D1 Database ─────────────────────────────────────────────
 [[d1_databases]]
-binding = ""
-database_name = ""
-database_id = ""
+binding = "rent"
+database_name = "rent"
+database_id = "00934261-93c9-4cbc-a5a6-eb1aff0c6530"
 
 # ─── Environment Variables ────────────────────────────────────
 # Non-secret config (safe to keep here)
 [vars]
 ENVIRONMENT = "development"
-GOOGLE_REDIRECT_URI = ""
+GOOGLE_REDIRECT_URI = "https://guest-cip.pages.dev/auth/google/callback"
 # GOOGLE_REDIRECT_URI = "http://localhost:3000/auth/google/callback"
 # Comma-separated list of allowed CORS origins
 # For production, set via: wrangler secret put ALLOWED_ORIGINS
-ALLOWED_ORIGINS = ""
+ALLOWED_ORIGINS = "http://localhost:3000,https://guest-cip.pages.dev"
 
 # Manual UPI Payment config
-UPI_ID = ""
-UPI_PAYEE_NAME = ""
+UPI_ID = "workwithpriyanku@oksbi"
+UPI_PAYEE_NAME = "Priyanku Gogoi"
 
 # Telegram notifications
-TELEGRAM_BOT_TOKEN = ""
-TELEGRAM_CHAT_ID = ""
+TELEGRAM_BOT_TOKEN = "8763018412:AAECDvpOhRPMb_MQOMdbii71btnEhlQ67b4"
+TELEGRAM_CHAT_ID = "5086234408"
 
 # ─── Secrets (NEVER commit these — set via CLI) ──────────────
 # Run each of these before first deploy:
