@@ -100,7 +100,7 @@ export default function AdminPaymentsPage() {
     return (
       <div>
         <PageHeader title="Payments" icon={CreditCard} />
-        <TableSkeleton rows={5} />
+        <TableSkeleton />
       </div>
     );
   }

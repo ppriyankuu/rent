@@ -106,7 +106,7 @@ export default function AdminTenantsPage() {
     return (
       <div>
         <PageHeader title="Tenants" icon={Users} />
-        <TableSkeleton rows={5} />
+        <TableSkeleton />
       </div>
     );
   }

@@ -103,7 +103,7 @@ export default function AdminPendingVerificationsPage() {
         return (
             <div>
                 <PageHeader title="Pending Verifications" icon={Clock} />
-                <TableSkeleton rows={5} />
+                <TableSkeleton />
             </div>
         );
     }

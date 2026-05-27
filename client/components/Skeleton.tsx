@@ -38,7 +38,7 @@ export function StatCardSkeleton() {
   );
 }
 
-export function TableSkeleton({ rows = 5 }: { rows?: number }) {
+export function TableSkeleton({ rows = 7 }: { rows?: number }) {
   return (
     <div className="overflow-x-auto">
       <table className="table">
@@ -55,8 +55,8 @@ export function TableSkeleton({ rows = 5 }: { rows?: number }) {
           {Array.from({ length: rows }).map((_, rowIdx) => (
             <tr key={rowIdx}>
               {[1, 2, 3, 4, 5].map((colIdx) => (
-                <td key={colIdx}>
-                  <Skeleton className="h-4 w-24" />
+                <td key={colIdx} className="py-1">
+                  <Skeleton className="h-7 w-24" />
                 </td>
               ))}
             </tr>
